@@ -1,0 +1,51 @@
+package com.pedrogavazzi.controleestudos.ui.materiadetail
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.pedrogavazzi.controleestudos.data.Aula
+import com.pedrogavazzi.controleestudos.data.Materia
+import com.pedrogavazzi.controleestudos.data.StudyRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class MateriaDetailViewModel(
+    private val repository: StudyRepository,
+    private val materiaId: Long
+) : ViewModel() {
+
+    val materia: StateFlow<Materia?> =
+        repository.observarMateria(materiaId).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val aulas: StateFlow<List<Aula>> =
+        repository.observarAulasDaMateria(materiaId).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun agendarAula(aula: Aula, dataHoraMillis: Long) {
+        viewModelScope.launch { repository.agendarAula(aula, dataHoraMillis) }
+    }
+
+    fun reagendarAula(aula: Aula, novaDataHoraMillis: Long) {
+        viewModelScope.launch { repository.reagendarAula(aula, novaDataHoraMillis) }
+    }
+
+    fun marcarConclusao(aula: Aula, concluida: Boolean) {
+        viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
+    }
+
+    fun definirAlerta(aula: Aula, ativado: Boolean) {
+        viewModelScope.launch { repository.definirAlerta(aula, ativado) }
+    }
+
+    fun salvarObservacao(aula: Aula, observacao: String) {
+        viewModelScope.launch { repository.salvarObservacao(aula, observacao) }
+    }
+}
