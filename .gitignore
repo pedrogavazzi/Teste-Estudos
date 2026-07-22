@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+**/build/
+/captures
+.externalNativeBuild/
+.cxx/
+local.properties
+*.apk
+*.aab
+
+# Wrapper jar is regenerated automatically by Android Studio / CI (see README).
+gradle/wrapper/gradle-wrapper.jar
