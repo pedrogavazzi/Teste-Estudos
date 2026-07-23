@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +65,19 @@ fun MateriaDetailScreen(
     val aulasSemData = aulas.count { it.dataHoraMillis == null }
     var mostrarDialogoLote by remember { mutableStateOf(false) }
 
+    // Só uma aula fica expandida por vez: abrir outra fecha a anterior automaticamente.
+    var aulaExpandidaId by remember { mutableStateOf<Long?>(null) }
+    val listState = rememberLazyListState()
+    val quantidadeItensAntesDasAulas = 1 + if (aulasSemData > 0) 1 else 0
+
+    LaunchedEffect(aulaExpandidaId) {
+        val id = aulaExpandidaId ?: return@LaunchedEffect
+        val indiceNaLista = aulas.indexOfFirst { it.id == id }
+        if (indiceNaLista != -1) {
+            listState.animateScrollToItem(quantidadeItensAntesDasAulas + indiceNaLista)
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -88,6 +103,7 @@ fun MateriaDetailScreen(
         }
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -135,6 +151,10 @@ fun MateriaDetailScreen(
             items(aulas, key = { it.id }) { aula ->
                 AulaItem(
                     aula = aula,
+                    expandido = aula.id == aulaExpandidaId,
+                    onToggleExpandir = {
+                        aulaExpandidaId = if (aulaExpandidaId == aula.id) null else aula.id
+                    },
                     onAgendar = { novaData -> viewModel.agendarAula(aula, novaData) },
                     onReagendar = { novaData -> viewModel.reagendarAula(aula, novaData) },
                     onMarcarConclusao = { concluida -> viewModel.marcarConclusao(aula, concluida) },

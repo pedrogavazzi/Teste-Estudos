@@ -117,7 +117,8 @@ class StudyRepository(context: Context) {
      * ainda sem data, espaçadas por [intervaloDias] dias corridos (qualquer número, escolhido
      * pelo usuário), sempre no mesmo horário de [dataHoraInicialMillis]. Se [apenasDiasUteis]
      * estiver ativo, qualquer data que caia em sábado ou domingo é empurrada para a
-     * segunda-feira seguinte.
+     * segunda-feira seguinte — cada data é calculada a partir da anterior já ajustada, para
+     * que duas aulas nunca caiam empurradas no mesmo dia.
      */
     suspend fun agendarEmLote(
         materiaId: Long,
@@ -131,20 +132,23 @@ class StudyRepository(context: Context) {
             .sortedBy { it.numero }
             .take(quantidade)
 
+        val calendario = Calendar.getInstance().apply { timeInMillis = dataHoraInicialMillis }
+        if (apenasDiasUteis) ajustarParaProximoDiaUtil(calendario)
+
         aulasParaAgendar.forEachIndexed { indice, aula ->
-            val calendario = Calendar.getInstance().apply {
-                timeInMillis = dataHoraInicialMillis
-                add(Calendar.DAY_OF_YEAR, indice * intervaloDias.coerceAtLeast(1))
-            }
-            if (apenasDiasUteis) {
-                when (calendario.get(Calendar.DAY_OF_WEEK)) {
-                    Calendar.SATURDAY -> calendario.add(Calendar.DAY_OF_YEAR, 2)
-                    Calendar.SUNDAY -> calendario.add(Calendar.DAY_OF_YEAR, 1)
-                }
+            if (indice > 0) {
+                calendario.add(Calendar.DAY_OF_YEAR, intervaloDias.coerceAtLeast(1))
+                if (apenasDiasUteis) ajustarParaProximoDiaUtil(calendario)
             }
             val atualizada = aula.copy(dataHoraMillis = calendario.timeInMillis)
             aulaDao.atualizar(atualizada)
             sincronizarAlarme(atualizada)
+        }
+    }
+
+    private fun ajustarParaProximoDiaUtil(calendario: Calendar) {
+        while (calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            calendario.add(Calendar.DAY_OF_YEAR, 1)
         }
     }
 

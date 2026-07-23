@@ -1,5 +1,6 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,7 +46,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -60,7 +69,27 @@ import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
 
-private val CorRealce = Color(0xFFFFF59D)
+private val CorRealce = Color(0xFFFFEB3B).copy(alpha = 0.45f)
+
+/**
+ * Barra de seleção de texto do próprio Android (cortar/copiar/colar) desativada de propósito:
+ * ela ficava sobrepondo a barra de formatação do app e atrapalhava desmarcar o realce. A
+ * seleção (destaque azul, alças de arrastar) continua funcionando normalmente — só a barra
+ * flutuante de atalhos do sistema não aparece mais; a formatação é feita pela barra do app.
+ */
+private object BarraDeSelecaoDesativada : TextToolbar {
+    override val status: TextToolbarStatus = TextToolbarStatus.Hidden
+    override fun hide() {}
+    override fun showMenu(
+        rect: Rect,
+        onCopyRequested: (() -> Unit)?,
+        onPasteRequested: (() -> Unit)?,
+        onCutRequested: (() -> Unit)?,
+        onSelectAllRequested: (() -> Unit)?
+    ) {
+        // Intencionalmente vazio.
+    }
+}
 
 /**
  * Tela dedicada do caderno de uma aula: um único texto contínuo (como um documento), com
@@ -206,34 +235,43 @@ fun CadernoEditorScreen(
                 Text(if (estado.carregando) "Carregando…" else "Aula não encontrada")
             }
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                BasicTextField(
-                    value = campo,
-                    onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
-                    readOnly = modoLeitura,
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
-                    visualTransformation = { texto -> TransformedText(construirAnnotatedString(texto.text, estilos), OffsetMapping.Identity) },
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { campoInterno ->
-                        if (campo.text.isEmpty()) {
-                            Text(
-                                if (modoLeitura) "Nenhuma anotação ainda." else "Escreva suas anotações aqui…",
-                                color = MaterialTheme.colorScheme.outline,
-                                fontSize = 16.sp
-                            )
+            val focusManager = LocalFocusManager.current
+            CompositionLocalProvider(LocalTextToolbar provides BarraDeSelecaoDesativada) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                        // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor,
+                        // já que o toque dentro do próprio campo é consumido por ele primeiro.
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { focusManager.clearFocus() })
                         }
-                        campoInterno()
-                    }
-                )
+                ) {
+                    BasicTextField(
+                        value = campo,
+                        onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
+                        readOnly = modoLeitura,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        visualTransformation = { texto -> TransformedText(construirAnnotatedString(texto.text, estilos), OffsetMapping.Identity) },
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { campoInterno ->
+                            if (campo.text.isEmpty()) {
+                                Text(
+                                    if (modoLeitura) "Nenhuma anotação ainda." else "Escreva suas anotações aqui…",
+                                    color = MaterialTheme.colorScheme.outline,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            campoInterno()
+                        }
+                    )
+                }
             }
         }
     }
