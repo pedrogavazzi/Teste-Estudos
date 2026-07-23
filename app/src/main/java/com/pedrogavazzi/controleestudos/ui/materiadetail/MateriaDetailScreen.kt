@@ -7,16 +7,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,13 +28,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.ui.platform.LocalContext
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
+import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +67,7 @@ fun MateriaDetailScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria(
+                    TextoNomeMateria(
                         nome = materia?.nome ?: "Aulas",
                         style = MaterialTheme.typography.titleLarge
                     )
@@ -69,14 +76,14 @@ fun MateriaDetailScreen(
                     IconButton(onClick = onVoltar) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                },
-                actions = {
-                    if (aulasSemData > 0) {
-                        IconButton(onClick = { mostrarDialogoLote = true }) {
-                            Icon(Icons.Filled.EventRepeat, contentDescription = "Agendamento em lote")
-                        }
-                    }
                 }
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.adicionarAula() },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("Adicionar aula") }
             )
         }
     ) { padding ->
@@ -95,6 +102,36 @@ fun MateriaDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
             }
+            if (aulasSemData > 0) {
+                item {
+                    Surface(
+                        onClick = { mostrarDialogoLote = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.EventRepeat, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 12.dp))
+                            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Agendar várias aulas de uma vez",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    "$aulasSemData aula(s) sem data — defina um padrão de repetição",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             items(aulas, key = { it.id }) { aula ->
                 AulaItem(
                     aula = aula,
@@ -104,9 +141,12 @@ fun MateriaDetailScreen(
                     onDefinirAlerta = { ativado -> viewModel.definirAlerta(aula, ativado) },
                     onDefinirTipoAlerta = { tipo -> viewModel.definirTipoAlerta(aula, tipo) },
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
-                    onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) }
+                    onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },
+                    onRenomear = { novoNome -> viewModel.renomearAula(aula, novoNome) },
+                    onExcluir = { viewModel.excluirAula(aula) }
                 )
             }
+            item { androidx.compose.foundation.layout.Spacer(Modifier.padding(32.dp)) }
         }
     }
 
@@ -114,8 +154,8 @@ fun MateriaDetailScreen(
         AgendamentoEmLoteDialog(
             quantidadeMaximaDisponivel = aulasSemData,
             onDismiss = { mostrarDialogoLote = false },
-            onConfirmar = { dataHoraInicial, intervaloDias, quantidade ->
-                viewModel.agendarEmLote(dataHoraInicial, intervaloDias, quantidade)
+            onConfirmar = { dataHoraInicial, intervaloDias, quantidade, apenasDiasUteis ->
+                viewModel.agendarEmLote(dataHoraInicial, intervaloDias, quantidade, apenasDiasUteis)
                 mostrarDialogoLote = false
             }
         )

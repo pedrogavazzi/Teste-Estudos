@@ -51,8 +51,13 @@ data class Aula(
     val observacao: String = "",
     /** Anotações longas feitas durante/depois da aula, editadas na aba Caderno. */
     val anotacoesCaderno: String = "",
-    val vezesReagendada: Int = 0
+    val vezesReagendada: Int = 0,
+    /** Nome customizado opcional — se vazio/nulo, usa o padrão "Aula N" (ver [nomeExibido]). */
+    val nomePersonalizado: String? = null
 )
+
+/** Nome exibido da aula: o personalizado, se definido, senão o padrão numerado "Aula N". */
+fun Aula.nomeExibido(): String = nomePersonalizado?.takeIf { it.isNotBlank() } ?: "Aula $numero"
 
 /** Retorna o instante do fim (23:59:59.999) do dia em que `millis` cai. */
 fun fimDoDiaMillis(millis: Long): Long {

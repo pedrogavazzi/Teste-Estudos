@@ -76,6 +76,23 @@ class StudyRepository(context: Context) {
 
     fun observarAula(id: Long): Flow<Aula?> = aulaDao.observarPorId(id)
 
+    /** Adiciona uma aula avulsa ao final da matéria (numerada automaticamente), sem data definida. */
+    suspend fun adicionarAula(materiaId: Long): Aula {
+        val aulasAtuais = aulaDao.buscarTodasDaMateriaSuspend(materiaId)
+        val proximoNumero = (aulasAtuais.maxOfOrNull { it.numero } ?: 0) + 1
+        val novaAula = Aula(materiaId = materiaId, numero = proximoNumero)
+        val id = aulaDao.inserir(novaAula)
+        materiaDao.buscarPorId(materiaId)?.let { materia ->
+            materiaDao.atualizar(materia.copy(totalAulas = aulasAtuais.size + 1))
+        }
+        return novaAula.copy(id = id)
+    }
+
+    /** Define um nome customizado para a aula, ou volta ao padrão "Aula N" se [novoNome] for vazio. */
+    suspend fun renomearAula(aula: Aula, novoNome: String?) {
+        aulaDao.atualizar(aula.copy(nomePersonalizado = novoNome?.trim()?.takeIf { it.isNotBlank() }))
+    }
+
     /** Define ou altera a data/horário de uma aula e reprograma o alerta, se ativado. */
     suspend fun agendarAula(aula: Aula, novaDataHoraMillis: Long?) {
         val atualizada = aula.copy(dataHoraMillis = novaDataHoraMillis)
@@ -97,14 +114,17 @@ class StudyRepository(context: Context) {
 
     /**
      * Agenda várias aulas de uma matéria de uma vez, em sequência a partir da primeira aula
-     * ainda sem data, espaçadas por [intervaloDias] dias (1 = todo dia, 2/3 = a cada 2/3 dias,
-     * 7 = toda semana no mesmo dia), sempre no mesmo horário da [dataHoraInicialMillis].
+     * ainda sem data, espaçadas por [intervaloDias] dias corridos (qualquer número, escolhido
+     * pelo usuário), sempre no mesmo horário de [dataHoraInicialMillis]. Se [apenasDiasUteis]
+     * estiver ativo, qualquer data que caia em sábado ou domingo é empurrada para a
+     * segunda-feira seguinte.
      */
     suspend fun agendarEmLote(
         materiaId: Long,
         dataHoraInicialMillis: Long,
         intervaloDias: Int,
-        quantidade: Int
+        quantidade: Int,
+        apenasDiasUteis: Boolean
     ) {
         val aulasParaAgendar = aulaDao.buscarTodasDaMateriaSuspend(materiaId)
             .filter { it.dataHoraMillis == null }
@@ -112,11 +132,17 @@ class StudyRepository(context: Context) {
             .take(quantidade)
 
         aulasParaAgendar.forEachIndexed { indice, aula ->
-            val dataDaAula = Calendar.getInstance().apply {
+            val calendario = Calendar.getInstance().apply {
                 timeInMillis = dataHoraInicialMillis
-                add(Calendar.DAY_OF_YEAR, indice * intervaloDias)
-            }.timeInMillis
-            val atualizada = aula.copy(dataHoraMillis = dataDaAula)
+                add(Calendar.DAY_OF_YEAR, indice * intervaloDias.coerceAtLeast(1))
+            }
+            if (apenasDiasUteis) {
+                when (calendario.get(Calendar.DAY_OF_WEEK)) {
+                    Calendar.SATURDAY -> calendario.add(Calendar.DAY_OF_YEAR, 2)
+                    Calendar.SUNDAY -> calendario.add(Calendar.DAY_OF_YEAR, 1)
+                }
+            }
+            val atualizada = aula.copy(dataHoraMillis = calendario.timeInMillis)
             aulaDao.atualizar(atualizada)
             sincronizarAlarme(atualizada)
         }
@@ -160,6 +186,9 @@ class StudyRepository(context: Context) {
     suspend fun excluirAula(aula: Aula) {
         alarmScheduler.cancelar(aula)
         aulaDao.excluir(aula)
+        materiaDao.buscarPorId(aula.materiaId)?.let { materia ->
+            materiaDao.atualizar(materia.copy(totalAulas = aulaDao.contarAulasDaMateria(aula.materiaId)))
+        }
     }
 
     private suspend fun sincronizarAlarme(aula: Aula) {

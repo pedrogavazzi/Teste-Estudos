@@ -15,8 +15,8 @@ sealed class Destino(val rota: String) {
     data object MateriaDetail : Destino("materia/{materiaId}") {
         fun rotaComId(materiaId: Long) = "materia/$materiaId"
     }
-    data object CadernoEditor : Destino("caderno_editor/{aulaId}") {
-        fun rotaComId(aulaId: Long) = "caderno_editor/$aulaId"
+    data object CadernoEditor : Destino("caderno_editor/{aulaId}?somenteLeitura={somenteLeitura}") {
+        fun rotaComId(aulaId: Long, somenteLeitura: Boolean = false) = "caderno_editor/$aulaId?somenteLeitura=$somenteLeitura"
     }
 }
 

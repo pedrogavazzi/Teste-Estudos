@@ -38,10 +38,22 @@ class MateriaDetailViewModel(
         viewModelScope.launch { repository.reagendarAula(aula, novaDataHoraMillis) }
     }
 
-    fun agendarEmLote(dataHoraInicialMillis: Long, intervaloDias: Int, quantidade: Int) {
+    fun agendarEmLote(dataHoraInicialMillis: Long, intervaloDias: Int, quantidade: Int, apenasDiasUteis: Boolean) {
         viewModelScope.launch {
-            repository.agendarEmLote(materiaId, dataHoraInicialMillis, intervaloDias, quantidade)
+            repository.agendarEmLote(materiaId, dataHoraInicialMillis, intervaloDias, quantidade, apenasDiasUteis)
         }
+    }
+
+    fun adicionarAula() {
+        viewModelScope.launch { repository.adicionarAula(materiaId) }
+    }
+
+    fun excluirAula(aula: Aula) {
+        viewModelScope.launch { repository.excluirAula(aula) }
+    }
+
+    fun renomearAula(aula: Aula, novoNome: String?) {
+        viewModelScope.launch { repository.renomearAula(aula, novoNome) }
     }
 
     fun marcarConclusao(aula: Aula, concluida: Boolean) {

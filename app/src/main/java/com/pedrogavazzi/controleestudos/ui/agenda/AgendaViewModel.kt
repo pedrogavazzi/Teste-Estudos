@@ -27,7 +27,7 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
         combine(repository.observarTodasAsAulas(), repository.observarMaterias()) { aulas, materias ->
             val materiasPorId: Map<Long, Materia> = materias.associateBy { it.id }
             aulas
-                .filter { it.dataHoraMillis != null }
+                .filter { it.dataHoraMillis != null && !it.concluida }
                 .sortedBy { it.dataHoraMillis }
                 .mapNotNull { aula ->
                     val materia = materiasPorId[aula.materiaId] ?: return@mapNotNull null

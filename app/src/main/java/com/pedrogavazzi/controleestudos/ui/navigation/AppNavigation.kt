@@ -61,7 +61,7 @@ fun AppNavigation() {
                 val viewModel: CadernoViewModel = viewModel()
                 CadernoScreen(
                     viewModel = viewModel,
-                    onAbrirAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId)) }
+                    onAbrirAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) }
                 )
             }
             composable(Destino.Desempenho.rota) {
@@ -76,14 +76,18 @@ fun AppNavigation() {
                 MateriaDetailScreen(
                     materiaId = materiaId,
                     onVoltar = { navController.popBackStack() },
-                    onAbrirCadernoDaAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId)) }
+                    onAbrirCadernoDaAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = true)) }
                 )
             }
             composable(
                 route = Destino.CadernoEditor.rota,
-                arguments = listOf(navArgument("aulaId") { type = NavType.LongType })
+                arguments = listOf(
+                    navArgument("aulaId") { type = NavType.LongType },
+                    navArgument("somenteLeitura") { type = NavType.BoolType; defaultValue = false }
+                )
             ) { backStackEntry ->
                 val aulaId = backStackEntry.arguments?.getLong("aulaId") ?: return@composable
+                val somenteLeitura = backStackEntry.arguments?.getBoolean("somenteLeitura") ?: false
                 val context = LocalContext.current
                 val repository = (context.applicationContext as ControleEstudosApp).repository
                 val viewModel: CadernoEditorViewModel = viewModel(
@@ -94,6 +98,7 @@ fun AppNavigation() {
                 )
                 CadernoEditorScreen(
                     aulaId = aulaId,
+                    somenteLeituraInicial = somenteLeitura,
                     viewModel = viewModel,
                     onVoltar = { navController.popBackStack() }
                 )

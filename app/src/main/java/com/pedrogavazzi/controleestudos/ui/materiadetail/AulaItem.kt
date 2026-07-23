@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.Aula
 import com.pedrogavazzi.controleestudos.data.StatusAula
 import com.pedrogavazzi.controleestudos.data.TipoAlerta
+import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
@@ -57,10 +60,14 @@ fun AulaItem(
     onDefinirAlerta: (Boolean) -> Unit,
     onDefinirTipoAlerta: (TipoAlerta) -> Unit,
     onSalvarObservacao: (String) -> Unit,
-    onAbrirCaderno: () -> Unit
+    onAbrirCaderno: () -> Unit,
+    onRenomear: (String?) -> Unit,
+    onExcluir: () -> Unit
 ) {
     val context = LocalContext.current
     var expandido by remember(aula.id) { mutableStateOf(false) }
+    var mostrarDialogoRenomear by remember { mutableStateOf(false) }
+    var mostrarConfirmacaoExclusao by remember { mutableStateOf(false) }
     val status = aula.statusAtual()
 
     // Importante: apenas o cabeçalho é clicável para expandir/recolher — se o Card inteiro
@@ -81,9 +88,11 @@ fun AulaItem(
                 )
                 Spacer(Modifier.padding(start = 8.dp))
                 Text(
-                    "Aula ${aula.numero}",
+                    aula.nomeExibido(),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 StatusChip(status)
@@ -202,6 +211,22 @@ fun AulaItem(
                         )
                     }
 
+                    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        androidx.compose.material3.TextButton(onClick = { mostrarDialogoRenomear = true }) {
+                            Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
+                            Text("Renomear")
+                        }
+                        androidx.compose.material3.TextButton(onClick = { mostrarConfirmacaoExclusao = true }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text("Excluir aula", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+
                     Spacer(Modifier.padding(top = 8.dp))
                     AnotacaoEditor(
                         chaveDeIdentidade = aula.id,
@@ -218,5 +243,54 @@ fun AulaItem(
                 }
             }
         }
+    }
+
+    if (mostrarDialogoRenomear) {
+        var nomeDigitado by remember { mutableStateOf(aula.nomePersonalizado ?: "") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { mostrarDialogoRenomear = false },
+            title = { Text("Renomear aula") },
+            text = {
+                Column {
+                    Text(
+                        "Deixe em branco para usar o nome padrão (\"Aula ${aula.numero}\").",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = nomeDigitado,
+                        onValueChange = { nomeDigitado = it },
+                        label = { Text("Nome da aula") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    onRenomear(nomeDigitado.trim().ifBlank { null })
+                    mostrarDialogoRenomear = false
+                }) { Text("Salvar") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { mostrarDialogoRenomear = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (mostrarConfirmacaoExclusao) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoExclusao = false },
+            title = { Text("Excluir ${aula.nomeExibido()}?") },
+            text = { Text("As anotações e o caderno dessa aula serão perdidos. Essa ação não pode ser desfeita.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    onExcluir()
+                    mostrarConfirmacaoExclusao = false
+                }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { mostrarConfirmacaoExclusao = false }) { Text("Cancelar") }
+            }
+        )
     }
 }

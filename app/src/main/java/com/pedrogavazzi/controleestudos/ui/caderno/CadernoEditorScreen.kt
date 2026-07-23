@@ -5,23 +5,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatColorFill
 import androidx.compose.material.icons.filled.FormatItalic
-import androidx.compose.material.icons.filled.FormatListBulleted
-import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
@@ -44,65 +44,83 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pedrogavazzi.controleestudos.data.Aula
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
 
+private val CorRealce = Color(0xFFFFF59D)
+
 /**
- * Tela dedicada do caderno de uma aula: cada anotação é um "bloco" (parágrafo) com sua
- * própria formatação — negrito, itálico, tamanho e marcador de lista — editável através
- * da barra de ferramentas. Salva automaticamente (com um pequeno atraso) a cada alteração.
+ * Tela dedicada do caderno de uma aula: um único texto contínuo (como um documento), com
+ * formatação por seleção de texto (negrito, itálico, tamanho, realce) — em vez de linhas
+ * separadas. Pode abrir em modo leitura (só visualização) ou edição.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CadernoEditorScreen(
     aulaId: Long,
+    somenteLeituraInicial: Boolean,
     viewModel: CadernoEditorViewModel,
     onVoltar: () -> Unit
 ) {
     val estado by viewModel.estado.collectAsState()
     val aula = estado.aula
 
-    var blocos by remember { mutableStateOf(listOf<BlocoCaderno>()) }
-    var blocosOriginais by remember { mutableStateOf(listOf<BlocoCaderno>()) }
+    var campo by remember { mutableStateOf(TextFieldValue("")) }
+    var estilos by remember { mutableStateOf(listOf<EstiloAplicado>()) }
+    var textoOriginal by remember { mutableStateOf("") }
+    var estilosOriginais by remember { mutableStateOf(listOf<EstiloAplicado>()) }
     var inicializado by remember(aulaId) { mutableStateOf(false) }
-    var blocoFocadoId by remember { mutableStateOf<String?>(null) }
+    var modoLeitura by remember(aulaId) { mutableStateOf(somenteLeituraInicial) }
 
     LaunchedEffect(aula?.id, estado.carregando) {
         if (!inicializado && !estado.carregando && aula != null) {
-            val carregados = CadernoSerializer.desserializar(aula.anotacoesCaderno)
-            blocos = carregados
-            blocosOriginais = carregados
+            val nota = CadernoSerializer.desserializar(aula.anotacoesCaderno)
+            campo = TextFieldValue(nota.texto)
+            estilos = nota.estilos
+            textoOriginal = nota.texto
+            estilosOriginais = nota.estilos
             inicializado = true
         }
     }
 
+    fun salvarAgora() {
+        aula?.let { viewModel.salvarAnotacoes(it, CadernoSerializer.serializar(NotaCaderno(campo.text, estilos))) }
+    }
+
     // Salva automaticamente pouco depois de parar de digitar (evita gravar a cada tecla).
-    LaunchedEffect(blocos) {
-        if (inicializado && aula != null) {
+    LaunchedEffect(campo.text, estilos) {
+        if (inicializado && aula != null && !modoLeitura) {
             delay(700)
-            viewModel.salvarAnotacoes(aula, CadernoSerializer.serializar(blocos))
+            salvarAgora()
         }
     }
 
-    fun atualizarBloco(id: String, transformar: (BlocoCaderno) -> BlocoCaderno) {
-        blocos = blocos.map { if (it.id == id) transformar(it) else it }
+    val alterado = campo.text != textoOriginal || estilos != estilosOriginais
+
+    fun aplicarEstilo(tipo: TipoEstilo) {
+        val selecao = campo.selection
+        if (selecao.collapsed) return
+        estilos = alternarEstilo(estilos, tipo, selecao.min, selecao.max)
     }
 
-    fun aplicarNoBlocoFocado(transformar: (BlocoCaderno) -> BlocoCaderno) {
-        val id = blocoFocadoId ?: blocos.lastOrNull()?.id ?: return
-        atualizarBloco(id, transformar)
+    fun aplicarTamanhoSelecao(tipo: TipoEstilo?) {
+        val selecao = campo.selection
+        if (selecao.collapsed) return
+        estilos = aplicarTamanho(estilos, tipo, selecao.min, selecao.max)
     }
-
-    val blocoFocado = blocos.firstOrNull { it.id == blocoFocadoId }
 
     Scaffold(
         topBar = {
@@ -124,15 +142,26 @@ fun CadernoEditorScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onVoltar) {
+                        IconButton(onClick = { salvarAgora(); onVoltar() }) {
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
                         }
                     },
                     actions = {
-                        val alterado = blocos.map { it.copy(id = "") } != blocosOriginais.map { it.copy(id = "") }
-                        if (alterado) {
-                            IconButton(onClick = { blocos = blocosOriginais }) {
-                                Icon(Icons.Filled.Undo, contentDescription = "Desfazer alterações")
+                        if (modoLeitura) {
+                            IconButton(onClick = { modoLeitura = false }) {
+                                Icon(Icons.Filled.Edit, contentDescription = "Editar")
+                            }
+                        } else {
+                            IconButton(onClick = { modoLeitura = true }) {
+                                Icon(Icons.Filled.Visibility, contentDescription = "Modo leitura")
+                            }
+                            if (alterado) {
+                                IconButton(onClick = {
+                                    campo = TextFieldValue(textoOriginal)
+                                    estilos = estilosOriginais
+                                }) {
+                                    Icon(Icons.Filled.Undo, contentDescription = "Desfazer alterações")
+                                }
                             }
                         }
                         if (aula != null) {
@@ -146,24 +175,29 @@ fun CadernoEditorScreen(
                         }
                     }
                 )
-                BarraDeFormatacao(
-                    bloco = blocoFocado,
-                    habilitada = blocoFocado != null,
-                    onNegritoClick = { aplicarNoBlocoFocado { it.copy(negrito = !it.negrito) } },
-                    onItalicoClick = { aplicarNoBlocoFocado { it.copy(italico = !it.italico) } },
-                    onTamanhoSelecionado = { tamanho -> aplicarNoBlocoFocado { it.copy(tamanho = tamanho) } },
-                    onTopicoClick = {
-                        aplicarNoBlocoFocado {
-                            it.copy(marcador = if (it.marcador == MarcadorBloco.TOPICO) MarcadorBloco.NENHUM else MarcadorBloco.TOPICO)
-                        }
-                    },
-                    onNumeradoClick = {
-                        aplicarNoBlocoFocado {
-                            it.copy(marcador = if (it.marcador == MarcadorBloco.NUMERADO) MarcadorBloco.NENHUM else MarcadorBloco.NUMERADO)
-                        }
-                    }
-                )
+                if (!modoLeitura) {
+                    BarraDeFormatacao(
+                        temSelecao = !campo.selection.collapsed,
+                        onNegritoClick = { aplicarEstilo(TipoEstilo.NEGRITO) },
+                        onItalicoClick = { aplicarEstilo(TipoEstilo.ITALICO) },
+                        onRealceClick = { aplicarEstilo(TipoEstilo.REALCE) },
+                        onTamanhoSelecionado = { tamanho -> aplicarTamanhoSelecao(tamanho) }
+                    )
+                }
                 Divider()
+            }
+        },
+        bottomBar = {
+            if (!modoLeitura) {
+                Surface(shadowElevation = 8.dp) {
+                    Button(
+                        onClick = { salvarAgora(); onVoltar() },
+                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                    ) {
+                        Icon(Icons.Filled.Save, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text("Salvar e sair")
+                    }
+                }
             }
         }
     ) { padding ->
@@ -172,189 +206,110 @@ fun CadernoEditorScreen(
                 Text(if (estado.carregando) "Carregando…" else "Aula não encontrada")
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                itemsIndexed(blocos, key = { _, bloco -> bloco.id }) { indice, bloco ->
-                    LinhaDoCaderno(
-                        bloco = bloco,
-                        numero = numeroDoItem(blocos, indice),
-                        focado = bloco.id == blocoFocadoId,
-                        podeExcluir = blocos.size > 1,
-                        onTextoAlterado = { novoTexto ->
-                            if (novoTexto.contains('\n')) {
-                                val partes = novoTexto.split('\n', limit = 2)
-                                val indiceAtual = blocos.indexOfFirst { it.id == bloco.id }
-                                val novoBloco = BlocoCaderno(
-                                    texto = partes.getOrElse(1) { "" },
-                                    tamanho = bloco.tamanho,
-                                    marcador = bloco.marcador
-                                )
-                                val listaMutavel = blocos.toMutableList()
-                                listaMutavel[indiceAtual] = bloco.copy(texto = partes[0])
-                                listaMutavel.add(indiceAtual + 1, novoBloco)
-                                blocos = listaMutavel
-                                blocoFocadoId = novoBloco.id
-                            } else {
-                                atualizarBloco(bloco.id) { it.copy(texto = novoTexto) }
-                            }
-                        },
-                        onFoco = { blocoFocadoId = bloco.id },
-                        onExcluir = {
-                            blocos = blocos.filter { it.id != bloco.id }.ifEmpty { listOf(BlocoCaderno()) }
+                BasicTextField(
+                    value = campo,
+                    onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
+                    readOnly = modoLeitura,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    visualTransformation = { texto -> TransformedText(construirAnnotatedString(texto.text, estilos), OffsetMapping.Identity) },
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { campoInterno ->
+                        if (campo.text.isEmpty()) {
+                            Text(
+                                if (modoLeitura) "Nenhuma anotação ainda." else "Escreva suas anotações aqui…",
+                                color = MaterialTheme.colorScheme.outline,
+                                fontSize = 16.sp
+                            )
                         }
-                    )
-                }
-                item { Spacer(Modifier.padding(40.dp)) }
+                        campoInterno()
+                    }
+                )
             }
         }
     }
 }
 
-/** Calcula o número exibido para um item marcado como NUMERADO, reiniciando a cada
- *  sequência quebrada por um bloco de outro tipo. */
-private fun numeroDoItem(blocos: List<BlocoCaderno>, indice: Int): Int? {
-    if (blocos[indice].marcador != MarcadorBloco.NUMERADO) return null
-    var contagem = 1
-    var i = indice - 1
-    while (i >= 0 && blocos[i].marcador == MarcadorBloco.NUMERADO) {
-        contagem++
-        i--
+private fun construirAnnotatedString(texto: String, estilos: List<EstiloAplicado>): AnnotatedString {
+    return buildAnnotatedString {
+        append(texto)
+        estilos.forEach { estilo ->
+            val inicio = estilo.inicio.coerceIn(0, texto.length)
+            val fim = estilo.fim.coerceIn(inicio, texto.length)
+            if (inicio >= fim) return@forEach
+            val spanStyle = when (estilo.tipo) {
+                TipoEstilo.NEGRITO -> SpanStyle(fontWeight = FontWeight.Bold)
+                TipoEstilo.ITALICO -> SpanStyle(fontStyle = FontStyle.Italic)
+                TipoEstilo.REALCE -> SpanStyle(background = CorRealce)
+                TipoEstilo.TITULO -> SpanStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                TipoEstilo.GRANDE -> SpanStyle(fontSize = 20.sp)
+                TipoEstilo.PEQUENO -> SpanStyle(fontSize = 13.sp)
+            }
+            addStyle(spanStyle, inicio, fim)
+        }
     }
-    return contagem
 }
 
 @Composable
 private fun BarraDeFormatacao(
-    bloco: BlocoCaderno?,
-    habilitada: Boolean,
+    temSelecao: Boolean,
     onNegritoClick: () -> Unit,
     onItalicoClick: () -> Unit,
-    onTamanhoSelecionado: (TamanhoBloco) -> Unit,
-    onTopicoClick: () -> Unit,
-    onNumeradoClick: () -> Unit
+    onRealceClick: () -> Unit,
+    onTamanhoSelecionado: (TipoEstilo?) -> Unit
 ) {
     var menuTamanhoAberto by remember { mutableStateOf(false) }
-    val corAtiva = MaterialTheme.colorScheme.primaryContainer
 
     Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onNegritoClick,
-                enabled = habilitada,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (bloco?.negrito == true) corAtiva else Color.Transparent
-                )
-            ) { Icon(Icons.Filled.FormatBold, contentDescription = "Negrito") }
-
-            IconButton(
-                onClick = onItalicoClick,
-                enabled = habilitada,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (bloco?.italico == true) corAtiva else Color.Transparent
-                )
-            ) { Icon(Icons.Filled.FormatItalic, contentDescription = "Itálico") }
-
-            Box {
-                IconButton(onClick = { menuTamanhoAberto = true }, enabled = habilitada) {
-                    Icon(Icons.Filled.FormatSize, contentDescription = "Tamanho do texto")
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onNegritoClick, enabled = temSelecao) {
+                    Icon(Icons.Filled.FormatBold, contentDescription = "Negrito")
                 }
-                DropdownMenu(expanded = menuTamanhoAberto, onDismissRequest = { menuTamanhoAberto = false }) {
-                    TamanhoBloco.entries.forEach { opcao ->
-                        DropdownMenuItem(
-                            text = { Text(opcao.rotulo) },
-                            onClick = {
-                                onTamanhoSelecionado(opcao)
-                                menuTamanhoAberto = false
-                            }
-                        )
+                IconButton(onClick = onItalicoClick, enabled = temSelecao) {
+                    Icon(Icons.Filled.FormatItalic, contentDescription = "Itálico")
+                }
+                IconButton(onClick = onRealceClick, enabled = temSelecao) {
+                    Icon(
+                        Icons.Filled.FormatColorFill,
+                        contentDescription = "Realçar",
+                        tint = if (temSelecao) Color(0xFFC9A227) else MaterialTheme.colorScheme.outline
+                    )
+                }
+                Box {
+                    IconButton(onClick = { menuTamanhoAberto = true }, enabled = temSelecao) {
+                        Icon(Icons.Filled.FormatSize, contentDescription = "Tamanho do texto")
+                    }
+                    DropdownMenu(expanded = menuTamanhoAberto, onDismissRequest = { menuTamanhoAberto = false }) {
+                        DropdownMenuItem(text = { Text("Normal") }, onClick = { onTamanhoSelecionado(null); menuTamanhoAberto = false })
+                        listOf(TipoEstilo.PEQUENO, TipoEstilo.GRANDE, TipoEstilo.TITULO).forEach { opcao ->
+                            DropdownMenuItem(
+                                text = { Text(opcao.rotulo) },
+                                onClick = { onTamanhoSelecionado(opcao); menuTamanhoAberto = false }
+                            )
+                        }
                     }
                 }
             }
-
-            IconButton(
-                onClick = onTopicoClick,
-                enabled = habilitada,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (bloco?.marcador == MarcadorBloco.TOPICO) corAtiva else Color.Transparent
-                )
-            ) { Icon(Icons.Filled.FormatListBulleted, contentDescription = "Lista com tópicos") }
-
-            IconButton(
-                onClick = onNumeradoClick,
-                enabled = habilitada,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (bloco?.marcador == MarcadorBloco.NUMERADO) corAtiva else Color.Transparent
-                )
-            ) { Icon(Icons.Filled.FormatListNumbered, contentDescription = "Lista numerada") }
-
-            if (!habilitada) {
+            if (!temSelecao) {
                 Text(
-                    "Toque em uma linha para formatar",
+                    "Selecione um trecho do texto para aplicar formatação",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LinhaDoCaderno(
-    bloco: BlocoCaderno,
-    numero: Int?,
-    focado: Boolean,
-    podeExcluir: Boolean,
-    onTextoAlterado: (String) -> Unit,
-    onFoco: () -> Unit,
-    onExcluir: () -> Unit
-) {
-    val estilo = TextStyle(
-        fontSize = bloco.tamanho.tamanhoSp.sp,
-        fontWeight = if (bloco.negrito) FontWeight.Bold else FontWeight.Normal,
-        fontStyle = if (bloco.italico) FontStyle.Italic else FontStyle.Normal,
-        color = MaterialTheme.colorScheme.onSurface
-    )
-
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        val prefixo = when (bloco.marcador) {
-            MarcadorBloco.TOPICO -> "•"
-            MarcadorBloco.NUMERADO -> "${numero ?: 1}."
-            MarcadorBloco.NENHUM -> null
-        }
-        if (prefixo != null) {
-            Text(
-                prefixo,
-                style = estilo,
-                modifier = Modifier.padding(top = 10.dp, end = 6.dp).width(24.dp)
-            )
-        }
-        BasicTextField(
-            value = bloco.texto,
-            onValueChange = onTextoAlterado,
-            textStyle = estilo,
-            modifier = Modifier
-                .weight(1f)
-                .padding(vertical = 10.dp)
-                .onFocusChanged { estadoFoco -> if (estadoFoco.isFocused) onFoco() },
-            decorationBox = { campoInterno ->
-                if (bloco.texto.isEmpty()) {
-                    Text("Escreva aqui…", style = estilo.copy(color = MaterialTheme.colorScheme.outline))
-                }
-                campoInterno()
-            }
-        )
-        if (focado && podeExcluir) {
-            IconButton(onClick = onExcluir, modifier = Modifier.padding(top = 2.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = "Remover linha", tint = MaterialTheme.colorScheme.outline)
             }
         }
     }

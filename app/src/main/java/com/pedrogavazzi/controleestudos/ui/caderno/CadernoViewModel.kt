@@ -70,8 +70,8 @@ class CadernoViewModel(application: Application) : AndroidViewModel(application)
     }
 }
 
-/** Uma anotação só conta como "feita" se algum bloco tiver texto de verdade — o texto
- *  serializado nunca fica totalmente vazio depois que a tela do caderno é aberta, pois
- *  guarda os marcadores de formatação mesmo sem conteúdo digitado. */
+/** Uma anotação só conta como "feita" se houver texto de verdade — o texto serializado
+ *  nunca fica totalmente vazio depois que a tela do caderno é aberta, pois guarda o
+ *  cabeçalho de estilos mesmo sem conteúdo digitado. */
 private fun temAnotacaoReal(anotacoesCaderno: String): Boolean =
-    CadernoSerializer.desserializar(anotacoesCaderno).any { it.texto.isNotBlank() }
+    CadernoSerializer.temConteudo(anotacoesCaderno)

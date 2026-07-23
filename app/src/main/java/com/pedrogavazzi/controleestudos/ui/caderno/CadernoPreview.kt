@@ -22,9 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
- * Pré-visualização do caderno de uma aula, no mesmo visual "papel" usado no editor completo:
- * usada tanto na tela da matéria (por aula) quanto na aba Caderno de hoje, para manter o
- * mesmo layout em qualquer lugar que o caderno apareça. Toque para abrir o editor completo.
+ * Pré-visualização do caderno de uma aula: usada tanto na tela da matéria (por aula) quanto
+ * na aba Caderno de hoje, para manter o mesmo layout em qualquer lugar que o caderno apareça.
+ * Toque para abrir o editor completo.
  */
 @Composable
 fun PreviaDoCaderno(
@@ -32,8 +32,10 @@ fun PreviaDoCaderno(
     onClick: () -> Unit,
     titulo: String = "Caderno da aula"
 ) {
-    val blocos = remember(anotacoesCaderno) { CadernoSerializer.desserializar(anotacoesCaderno) }
-    val temConteudo = blocos.any { it.texto.isNotBlank() }
+    val nota = remember(anotacoesCaderno) { CadernoSerializer.desserializar(anotacoesCaderno) }
+    val primeirasLinhas = remember(nota.texto) {
+        nota.texto.lineSequence().filter { it.isNotBlank() }.take(2).joinToString(" ")
+    }
 
     Surface(
         onClick = onClick,
@@ -53,20 +55,15 @@ fun PreviaDoCaderno(
                 )
                 Icon(Icons.Filled.ChevronRight, contentDescription = null, modifier = Modifier.padding(4.dp))
             }
-            if (temConteudo) {
-                Spacer(Modifier.padding(top = 6.dp))
-                blocos.filter { it.texto.isNotBlank() }.take(2).forEach { bloco ->
-                    val prefixo = if (bloco.marcador == MarcadorBloco.NENHUM) "" else "• "
-                    Text(
-                        prefixo + bloco.texto,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (bloco.negrito) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            Spacer(Modifier.padding(top = 6.dp))
+            if (primeirasLinhas.isNotBlank()) {
+                Text(
+                    primeirasLinhas,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             } else {
-                Spacer(Modifier.padding(top = 4.dp))
                 Text(
                     "Nenhuma anotação ainda — toque para começar a escrever",
                     style = MaterialTheme.typography.bodyMedium,
