@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="purple_primary">#6750A4</color>
-    <color name="purple_primary_dark">#D0BCFF</color>
-    <color name="green_success">#2E7D32</color>
-    <color name="red_alert">#C62828</color>
-    <color name="amber_pending">#F9A825</color>
-</resources>
