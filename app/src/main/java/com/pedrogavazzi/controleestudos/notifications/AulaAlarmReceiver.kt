@@ -22,7 +22,7 @@ class AulaAlarmReceiver : BroadcastReceiver() {
         val nomeMateria = intent.getStringExtra(EXTRA_NOME_MATERIA) ?: "Matéria"
         val tipoAlerta = runCatching {
             TipoAlerta.valueOf(intent.getStringExtra(EXTRA_TIPO_ALERTA) ?: "")
-        }.getOrDefault(TipoAlerta.SOM_E_VIBRACAO)
+        }.getOrDefault(TipoAlerta.COM_SOM)
 
         NotificationHelper.exibirNotificacaoDeAula(context, aulaId, nomeMateria, numeroAula, tipoAlerta)
     }
