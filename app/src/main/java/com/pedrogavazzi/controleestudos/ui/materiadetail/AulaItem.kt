@@ -1,6 +1,5 @@
 package com.pedrogavazzi.controleestudos.ui.materiadetail
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,23 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -51,7 +46,9 @@ import com.pedrogavazzi.controleestudos.data.TipoAlerta
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor
+import com.pedrogavazzi.controleestudos.ui.components.IconeConclusao
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
+import com.pedrogavazzi.controleestudos.ui.components.TAMANHO_MAXIMO_NOME_MATERIA
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import com.pedrogavazzi.controleestudos.ui.theme.VermelhoAlerta
@@ -76,42 +73,49 @@ fun AulaItem(
     var mostrarConfirmacaoExclusao by remember { mutableStateOf(false) }
     val status = aula.statusAtual()
 
-    // Importante: apenas o cabeçalho é clicável para expandir/recolher — se o Card inteiro
-    // fosse clicável, tocar no campo de observação (mais abaixo) podia recolher o card
-    // antes do usuário conseguir digitar ou salvar. O ícone de conclusão, o nome e o lápis
-    // de renomear têm seus próprios toques, que não disparam esse clique de fundo.
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // O card inteiro abre/fecha ao tocar em qualquer lugar — os botões "Renomear", "Excluir"
+    // e o ícone de conclusão são seus próprios elementos clicáveis e consomem o toque antes
+    // que ele chegue ao card, então não disparam a abertura por engano.
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggleExpandir),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
         Column(Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggleExpandir)
-            ) {
-                IconButton(onClick = { onMarcarConclusao(!aula.concluida) }) {
-                    Icon(
-                        imageVector = if (aula.concluida) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                        contentDescription = if (aula.concluida) "Marcar como não concluída" else "Marcar como concluída",
-                        tint = if (aula.concluida) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                    )
-                }
-                Spacer(Modifier.padding(start = 8.dp))
+            Row(verticalAlignment = Alignment.Top) {
+                IconeConclusao(concluida = aula.concluida, onAlterar = onMarcarConclusao)
+                Spacer(Modifier.padding(start = 4.dp))
                 Text(
                     aula.nomeExibido(),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { Toast.makeText(context, aula.nomeExibido(), Toast.LENGTH_SHORT).show() }
+                    modifier = Modifier.weight(1f).padding(top = 12.dp)
                 )
-                IconButton(onClick = { mostrarDialogoRenomear = true }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Renomear aula")
-                }
-                StatusChip(status)
+                Spacer(Modifier.padding(start = 4.dp))
+                StatusChip(status, modifier = Modifier.padding(top = 8.dp))
             }
-            Spacer(Modifier.padding(top = 4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                TextButton(onClick = { mostrarDialogoRenomear = true }) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
+                    Text("Renomear")
+                }
+                TextButton(onClick = { mostrarConfirmacaoExclusao = true }) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                    Text("Excluir", color = MaterialTheme.colorScheme.error)
+                }
+            }
+
             Text(formatarDataHora(aula.dataHoraMillis), style = MaterialTheme.typography.bodyLarge)
 
             if (status == StatusAula.ATRASADA) {
@@ -160,17 +164,6 @@ fun AulaItem(
 
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = aula.concluida, onCheckedChange = onMarcarConclusao)
-                        Text(
-                            if (aula.concluida) "Aula concluída (toque para desmarcar)" else "Aula concluída",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -241,20 +234,6 @@ fun AulaItem(
                         anotacoesCaderno = aula.anotacoesCaderno,
                         onClick = onAbrirCaderno
                     )
-
-                    Spacer(Modifier.padding(top = 16.dp))
-                    TextButton(
-                        onClick = { mostrarConfirmacaoExclusao = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            Icons.Filled.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-                        Text("Excluir aula", color = MaterialTheme.colorScheme.error)
-                    }
                 }
             }
         }
@@ -273,8 +252,9 @@ fun AulaItem(
                     )
                     OutlinedTextField(
                         value = nomeDigitado,
-                        onValueChange = { nomeDigitado = it },
+                        onValueChange = { novo -> if (novo.length <= TAMANHO_MAXIMO_NOME_MATERIA) nomeDigitado = novo },
                         label = { Text("Nome da aula") },
+                        supportingText = { Text("${nomeDigitado.length}/$TAMANHO_MAXIMO_NOME_MATERIA") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )

@@ -114,11 +114,11 @@ class StudyRepository(context: Context) {
 
     /**
      * Agenda várias aulas de uma matéria de uma vez, em sequência a partir da primeira aula
-     * ainda sem data, espaçadas por [intervaloDias] dias corridos (qualquer número, escolhido
-     * pelo usuário), sempre no mesmo horário de [dataHoraInicialMillis]. Se [apenasDiasUteis]
-     * estiver ativo, qualquer data que caia em sábado ou domingo é empurrada para a
-     * segunda-feira seguinte — cada data é calculada a partir da anterior já ajustada, para
-     * que duas aulas nunca caiam empurradas no mesmo dia.
+     * ainda sem data, espaçadas por [intervaloDias] dias (qualquer número, escolhido pelo
+     * usuário), sempre no mesmo horário de [dataHoraInicialMillis]. Se [apenasDiasUteis]
+     * estiver ativo, o intervalo conta só dias de segunda a sexta — sábado e domingo são
+     * pulados na própria contagem (não é "soma dias corridos e empurra depois", que contaria
+     * o fim de semana como se fosse dia útil e podia até fazer duas aulas caírem juntas).
      */
     suspend fun agendarEmLote(
         materiaId: Long,
@@ -133,12 +133,16 @@ class StudyRepository(context: Context) {
             .take(quantidade)
 
         val calendario = Calendar.getInstance().apply { timeInMillis = dataHoraInicialMillis }
-        if (apenasDiasUteis) ajustarParaProximoDiaUtil(calendario)
+        if (apenasDiasUteis) empurrarParaDiaUtil(calendario)
 
         aulasParaAgendar.forEachIndexed { indice, aula ->
             if (indice > 0) {
-                calendario.add(Calendar.DAY_OF_YEAR, intervaloDias.coerceAtLeast(1))
-                if (apenasDiasUteis) ajustarParaProximoDiaUtil(calendario)
+                val passo = intervaloDias.coerceAtLeast(1)
+                if (apenasDiasUteis) {
+                    adicionarDiasUteis(calendario, passo)
+                } else {
+                    calendario.add(Calendar.DAY_OF_YEAR, passo)
+                }
             }
             val atualizada = aula.copy(dataHoraMillis = calendario.timeInMillis)
             aulaDao.atualizar(atualizada)
@@ -146,9 +150,22 @@ class StudyRepository(context: Context) {
         }
     }
 
-    private fun ajustarParaProximoDiaUtil(calendario: Calendar) {
+    /** Empurra para a próxima segunda-feira se a data cair em sábado ou domingo (só a 1ª aula). */
+    private fun empurrarParaDiaUtil(calendario: Calendar) {
         while (calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
             calendario.add(Calendar.DAY_OF_YEAR, 1)
+        }
+    }
+
+    /** Avança exatamente [quantidade] dias ÚTEIS (sábado/domingo não contam nem são destino). */
+    private fun adicionarDiasUteis(calendario: Calendar, quantidade: Int) {
+        var restante = quantidade
+        while (restante > 0) {
+            calendario.add(Calendar.DAY_OF_YEAR, 1)
+            val diaDaSemana = calendario.get(Calendar.DAY_OF_WEEK)
+            if (diaDaSemana != Calendar.SATURDAY && diaDaSemana != Calendar.SUNDAY) {
+                restante--
+            }
         }
     }
 

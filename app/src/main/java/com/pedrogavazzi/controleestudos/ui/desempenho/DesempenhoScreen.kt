@@ -85,7 +85,11 @@ fun DesempenhoScreen(viewModel: DesempenhoViewModel) {
 
 @Composable
 private fun CardDesempenhoGeral(totalAulas: Int, concluidas: Int, percentual: Float) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonalDestacado()
+    ) {
         Column(Modifier.padding(20.dp)) {
             Text("Desempenho geral", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.padding(top = 8.dp))
@@ -109,7 +113,11 @@ private fun CardDesempenhoMateria(item: DesempenhoMateria) {
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.materia.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
 
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(12.dp).background(cor, CircleShape))

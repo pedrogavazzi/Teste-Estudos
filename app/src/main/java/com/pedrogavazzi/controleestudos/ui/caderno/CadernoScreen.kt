@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,8 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.StatusAula
+import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.agenda.AulaComMateria
+import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.formatarHora
@@ -121,21 +122,30 @@ private fun ItemCaderno(
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
 
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).background(cor, CircleShape))
                 Spacer(Modifier.padding(start = 8.dp))
                 Column(Modifier.weight(1f)) {
                     TextoNomeMateria(
-                        nome = "${item.nomeMateria} — Aula ${item.aula.numero}",
+                        nome = item.nomeMateria,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        item.aula.nomeExibido(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(formatarHora(item.aula.dataHoraMillis!!), style = MaterialTheme.typography.bodyMedium)
                 }
                 StatusChip(status, modifier = Modifier.padding(end = 8.dp))
-                Checkbox(checked = item.aula.concluida, onCheckedChange = onMarcarConclusao)
+                CaixaConclusao(concluida = item.aula.concluida, onAlterar = onMarcarConclusao)
             }
 
             if (status == StatusAula.ATRASADA) {

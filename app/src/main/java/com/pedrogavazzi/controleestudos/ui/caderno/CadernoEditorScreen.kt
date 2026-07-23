@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -65,6 +64,8 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pedrogavazzi.controleestudos.data.nomeExibido
+import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
@@ -158,8 +159,9 @@ fun CadernoEditorScreen(
                     title = {
                         Column {
                             TextoNomeMateria(
-                                nome = estado.materia?.nome?.let { "$it — Aula ${aula?.numero ?: ""}" } ?: "Caderno",
-                                style = MaterialTheme.typography.titleMedium
+                                nome = estado.materia?.nome?.let { "$it — ${aula?.nomeExibido() ?: ""}" } ?: "Caderno",
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 2
                             )
                             if (aula?.dataHoraMillis != null) {
                                 Text(
@@ -196,9 +198,9 @@ fun CadernoEditorScreen(
                         if (aula != null) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
                                 Text("Concluída", style = MaterialTheme.typography.labelSmall)
-                                Checkbox(
-                                    checked = aula.concluida,
-                                    onCheckedChange = { concluida -> viewModel.marcarConclusao(aula, concluida) }
+                                CaixaConclusao(
+                                    concluida = aula.concluida,
+                                    onAlterar = { concluida -> viewModel.marcarConclusao(aula, concluida) }
                                 )
                             }
                         }
@@ -237,18 +239,25 @@ fun CadernoEditorScreen(
         } else {
             val focusManager = LocalFocusManager.current
             CompositionLocalProvider(LocalTextToolbar provides BarraDeSelecaoDesativada) {
-                Box(
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
                         .padding(16.dp)
-                        .verticalScroll(rememberScrollState())
-                        // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor,
-                        // já que o toque dentro do próprio campo é consumido por ele primeiro.
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = { focusManager.clearFocus() })
-                        }
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp)
+                            .verticalScroll(rememberScrollState())
+                            // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor,
+                            // já que o toque dentro do próprio campo é consumido por ele primeiro.
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { focusManager.clearFocus() })
+                            }
+                    ) {
                     BasicTextField(
                         value = campo,
                         onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
@@ -271,6 +280,7 @@ fun CadernoEditorScreen(
                             campoInterno()
                         }
                     )
+                }
                 }
             }
         }

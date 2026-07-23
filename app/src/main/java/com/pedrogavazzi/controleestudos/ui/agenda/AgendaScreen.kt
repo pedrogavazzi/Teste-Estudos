@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.StatusAula
+import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
+import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
@@ -147,11 +148,12 @@ private fun ItemAgenda(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
         border = if (destaque) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
         colors = if (destaque) {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f))
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
         } else {
-            CardDefaults.cardColors()
+            com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
         }
     ) {
         Row(
@@ -162,10 +164,11 @@ private fun ItemAgenda(
             Spacer(Modifier.padding(start = 8.dp))
             Column(Modifier.weight(1f)) {
                 TextoNomeMateria(
-                    nome = "${item.nomeMateria} — Aula ${item.aula.numero}",
-                    style = MaterialTheme.typography.bodyLarge,
+                    nome = item.nomeMateria,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Medium
                 )
+                Text(item.aula.nomeExibido(), style = MaterialTheme.typography.bodyLarge)
                 Text(formatarHora(item.aula.dataHoraMillis!!), style = MaterialTheme.typography.bodyLarge)
                 if (status == StatusAula.ATRASADA) {
                     Text("Atrasada — não concluída nem reagendada", color = VermelhoAlerta, style = MaterialTheme.typography.labelSmall)
@@ -178,7 +181,7 @@ private fun ItemAgenda(
                     contentDescription = if (status == StatusAula.ATRASADA) "Reagendar" else "Alterar data e horário"
                 )
             }
-            Checkbox(checked = item.aula.concluida, onCheckedChange = onMarcarConclusao)
+            CaixaConclusao(concluida = item.aula.concluida, onAlterar = onMarcarConclusao)
         }
     }
 }

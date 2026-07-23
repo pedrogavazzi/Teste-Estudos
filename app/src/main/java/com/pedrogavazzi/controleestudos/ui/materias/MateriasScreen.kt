@@ -139,7 +139,11 @@ private fun MateriaCard(
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.materia.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
 
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
