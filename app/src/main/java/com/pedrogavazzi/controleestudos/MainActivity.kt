@@ -35,12 +35,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val preferencias = (application as ControleEstudosApp).preferencias
             val tema by preferencias.tema.collectAsState()
+            val corDinamica by preferencias.usarCorDinamica.collectAsState()
             val temaEscuro = when (tema) {
                 TemaApp.CLARO -> false
                 TemaApp.ESCURO -> true
                 TemaApp.SISTEMA -> isSystemInDarkTheme()
             }
-            ControleDeEstudosTheme(useDarkTheme = temaEscuro) {
+            ControleDeEstudosTheme(useDarkTheme = temaEscuro, dynamicColor = corDinamica) {
                 SolicitarPermissoesNecessarias()
                 AppNavigation()
             }

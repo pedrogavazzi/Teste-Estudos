@@ -51,6 +51,7 @@ fun AulaItem(
     onToggleExpandir: () -> Unit,
     onAgendar: (Long) -> Unit,
     onReagendar: (Long) -> Unit,
+    onRemoverAgendamento: () -> Unit,
     onMarcarConclusao: (Boolean) -> Unit,
     onSalvarObservacao: (String) -> Unit,
     onAbrirCaderno: () -> Unit,
@@ -162,6 +163,15 @@ fun AulaItem(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                        }
+                    }
+
+                    if (aula.dataHoraMillis != null) {
+                        TextButton(
+                            onClick = onRemoverAgendamento,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Remover agendamento (voltar para não agendada)")
                         }
                     }
 

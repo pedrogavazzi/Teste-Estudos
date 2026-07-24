@@ -27,6 +27,17 @@ class PreferenciasApp(context: Context) {
     )
     val tema: StateFlow<TemaApp> = _tema.asStateFlow()
 
+    // Desligada por padrão: a paleta de cores das matérias e a identidade visual roxa do app
+    // foram pensadas para funcionar juntas — a cor dinâmica do Android (derivada do papel de
+    // parede) pode destoar delas. O usuário pode ligar de volta em Configurações se preferir.
+    private val _usarCorDinamica = MutableStateFlow(prefs.getBoolean(CHAVE_COR_DINAMICA, false))
+    val usarCorDinamica: StateFlow<Boolean> = _usarCorDinamica.asStateFlow()
+
+    fun definirUsarCorDinamica(ativo: Boolean) {
+        _usarCorDinamica.value = ativo
+        prefs.edit().putBoolean(CHAVE_COR_DINAMICA, ativo).apply()
+    }
+
     private val _notificacoesAtivadas = MutableStateFlow(prefs.getBoolean(CHAVE_NOTIFICACOES, true))
     val notificacoesAtivadas: StateFlow<Boolean> = _notificacoesAtivadas.asStateFlow()
 
@@ -67,6 +78,7 @@ class PreferenciasApp(context: Context) {
     private companion object {
         const val NOME_ARQUIVO = "preferencias_app"
         const val CHAVE_TEMA = "tema"
+        const val CHAVE_COR_DINAMICA = "usar_cor_dinamica"
         const val CHAVE_NOTIFICACOES = "notificacoes_ativadas"
         const val CHAVE_SOM = "som_ativado"
         const val CHAVE_VIBRACAO = "vibracao_ativada"

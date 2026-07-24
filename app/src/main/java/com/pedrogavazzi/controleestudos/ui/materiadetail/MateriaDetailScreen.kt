@@ -160,6 +160,7 @@ fun MateriaDetailScreen(
                     },
                     onAgendar = { novaData -> viewModel.agendarAula(aula, novaData) },
                     onReagendar = { novaData -> viewModel.reagendarAula(aula, novaData) },
+                    onRemoverAgendamento = { viewModel.agendarAula(aula, null) },
                     onMarcarConclusao = { concluida -> viewModel.marcarConclusao(aula, concluida) },
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
                     onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },

@@ -29,7 +29,7 @@ class MateriaDetailViewModel(
             initialValue = emptyList()
         )
 
-    fun agendarAula(aula: Aula, dataHoraMillis: Long) {
+    fun agendarAula(aula: Aula, dataHoraMillis: Long?) {
         viewModelScope.launch { repository.agendarAula(aula, dataHoraMillis) }
     }
 

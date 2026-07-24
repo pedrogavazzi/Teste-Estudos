@@ -9,20 +9,24 @@ import com.pedrogavazzi.controleestudos.data.Materia
 import com.pedrogavazzi.controleestudos.data.StudyRepository
 import com.pedrogavazzi.controleestudos.ui.agenda.AulaComMateria
 import java.util.Calendar
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-private fun inicioDoDiaMillis(): Long = Calendar.getInstance().apply {
+fun inicioDoDiaMillis(base: Long = System.currentTimeMillis()): Long = Calendar.getInstance().apply {
+    timeInMillis = base
     set(Calendar.HOUR_OF_DAY, 0)
     set(Calendar.MINUTE, 0)
     set(Calendar.SECOND, 0)
     set(Calendar.MILLISECOND, 0)
 }.timeInMillis
 
-private fun fimDoDiaMillis(): Long = Calendar.getInstance().apply {
+private fun fimDoDia(base: Long): Long = Calendar.getInstance().apply {
+    timeInMillis = base
     set(Calendar.HOUR_OF_DAY, 23)
     set(Calendar.MINUTE, 59)
     set(Calendar.SECOND, 59)
@@ -35,20 +39,23 @@ data class EstadoCaderno(
 )
 
 /**
- * Caderno com as aulas agendadas para hoje. Assim que uma anotação é salva para uma aula,
- * ela sai da lista "em andamento" e passa para "aulas feitas" — mas continua acessível e
+ * Caderno das aulas de um dia — por padrão hoje, mas o usuário pode navegar para qualquer
+ * outro dia (histórico), não só "hoje". Assim que uma anotação é salva para uma aula, ela
+ * sai da lista "em andamento" e passa para "aulas feitas" — mas continua acessível e
  * editável ali, sem perder o que já foi escrito.
  */
 class CadernoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: StudyRepository = (application as ControleEstudosApp).repository
 
+    private val _dataSelecionada = MutableStateFlow(inicioDoDiaMillis())
+    val dataSelecionada: StateFlow<Long> = _dataSelecionada.asStateFlow()
+
     val estado: StateFlow<EstadoCaderno> =
-        combine(repository.observarTodasAsAulas(), repository.observarMaterias()) { aulas, materias ->
+        combine(repository.observarTodasAsAulas(), repository.observarMaterias(), _dataSelecionada) { aulas, materias, inicio ->
             val materiasPorId: Map<Long, Materia> = materias.associateBy { it.id }
-            val inicio = inicioDoDiaMillis()
-            val fim = fimDoDiaMillis()
-            val aulasDeHoje = aulas
+            val fim = fimDoDia(inicio)
+            val aulasDoDia = aulas
                 .filter { it.dataHoraMillis != null && it.dataHoraMillis in inicio..fim }
                 .sortedBy { it.dataHoraMillis }
                 .mapNotNull { aula ->
@@ -56,14 +63,36 @@ class CadernoViewModel(application: Application) : AndroidViewModel(application)
                     AulaComMateria(aula, materia.nome, materia.corHex)
                 }
             EstadoCaderno(
-                emAndamento = aulasDeHoje.filter { !temAnotacaoReal(it.aula.anotacoesCaderno) },
-                aulasFeitas = aulasDeHoje.filter { temAnotacaoReal(it.aula.anotacoesCaderno) }
+                emAndamento = aulasDoDia.filter { !temAnotacaoReal(it.aula.anotacoesCaderno) },
+                aulasFeitas = aulasDoDia.filter { temAnotacaoReal(it.aula.anotacoesCaderno) }
             )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = EstadoCaderno()
         )
+
+    fun irParaHoje() {
+        _dataSelecionada.value = inicioDoDiaMillis()
+    }
+
+    fun diaAnterior() {
+        _dataSelecionada.value = Calendar.getInstance().apply {
+            timeInMillis = _dataSelecionada.value
+            add(Calendar.DAY_OF_YEAR, -1)
+        }.timeInMillis
+    }
+
+    fun diaSeguinte() {
+        _dataSelecionada.value = Calendar.getInstance().apply {
+            timeInMillis = _dataSelecionada.value
+            add(Calendar.DAY_OF_YEAR, 1)
+        }.timeInMillis
+    }
+
+    fun selecionarData(millis: Long) {
+        _dataSelecionada.value = inicioDoDiaMillis(millis)
+    }
 
     fun marcarConclusao(aula: Aula, concluida: Boolean) {
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }

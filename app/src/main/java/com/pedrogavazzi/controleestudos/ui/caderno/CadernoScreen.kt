@@ -15,20 +15,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.StatusAula
@@ -38,21 +44,59 @@ import com.pedrogavazzi.controleestudos.ui.agenda.AulaComMateria
 import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
+import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeData
+import com.pedrogavazzi.controleestudos.ui.components.formatarDiaSemanaData
 import com.pedrogavazzi.controleestudos.ui.components.formatarHora
 
 /**
- * Aba "Caderno": aulas de hoje, práticas para anotar durante a própria aula. Toque em uma
- * aula para abrir o editor completo (formatação, tópicos, etc.); ao salvar alguma anotação,
- * a aula sai de "Em andamento" e passa para "Aulas feitas" — mas continua editável.
+ * Aba "Caderno": aulas de um dia (hoje por padrão, mas dá pra navegar para qualquer outro
+ * dia — histórico), práticas para anotar durante a própria aula. Toque em uma aula para abrir
+ * o editor completo; ao salvar alguma anotação, a aula sai de "Em andamento" e passa para
+ * "Aulas feitas" — mas continua editável.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
     val estado by viewModel.estado.collectAsState()
+    val dataSelecionada by viewModel.dataSelecionada.collectAsState()
+    val context = LocalContext.current
     val semAulas = estado.emAndamento.isEmpty() && estado.aulasFeitas.isEmpty()
+    val ehHoje = dataSelecionada == inicioDoDiaMillis()
 
     Scaffold(
-        topBar = { CenterAlignedTopAppBar(title = { Text("Caderno de hoje") }) }
+        topBar = {
+            Column {
+                CenterAlignedTopAppBar(
+                    title = { Text(if (ehHoje) "Caderno de hoje" else "Caderno") }
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { viewModel.diaAnterior() }) {
+                        Icon(Icons.Filled.ChevronLeft, contentDescription = "Dia anterior")
+                    }
+                    TextButton(
+                        onClick = {
+                            abrirSeletorDeData(context, dataSelecionada) { novaData ->
+                                viewModel.selecionarData(novaData)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(formatarDiaSemanaData(dataSelecionada))
+                    }
+                    IconButton(onClick = { viewModel.diaSeguinte() }) {
+                        Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo dia")
+                    }
+                    if (!ehHoje) {
+                        IconButton(onClick = { viewModel.irParaHoje() }) {
+                            Icon(Icons.Filled.Today, contentDescription = "Ir para hoje")
+                        }
+                    }
+                }
+            }
+        }
     ) { padding ->
         if (semAulas) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -64,7 +108,10 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.padding(4.dp))
-                    Text("Nenhuma aula agendada para hoje.", modifier = Modifier.padding(16.dp))
+                    Text(
+                        if (ehHoje) "Nenhuma aula agendada para hoje." else "Nenhuma aula agendada para esse dia.",
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         } else {

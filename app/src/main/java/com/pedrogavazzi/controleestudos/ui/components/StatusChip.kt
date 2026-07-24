@@ -16,7 +16,7 @@ import com.pedrogavazzi.controleestudos.ui.theme.VermelhoAlerta
 @Composable
 fun StatusChip(status: StatusAula, modifier: Modifier = Modifier) {
     val (texto, cor) = when (status) {
-        StatusAula.NAO_AGENDADA -> "Não agendada" to Color.Gray
+        StatusAula.NAO_AGENDADA -> "Não agendada" to MaterialTheme.colorScheme.outline
         StatusAula.AGENDADA -> "Agendada" to MaterialTheme.colorScheme.primary
         StatusAula.ATRASADA -> "Atrasada" to VermelhoAlerta
         StatusAula.CONCLUIDA -> "Concluída" to VerdeSucesso

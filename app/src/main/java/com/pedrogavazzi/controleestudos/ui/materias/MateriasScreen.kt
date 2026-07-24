@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.Materia
+import com.pedrogavazzi.controleestudos.ui.components.CampoDeBusca
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +51,11 @@ fun MateriasScreen(
     var dialogoAberto by remember { mutableStateOf(false) }
     var materiaEmEdicao by remember { mutableStateOf<Materia?>(null) }
     var materiaParaExcluir by remember { mutableStateOf<Materia?>(null) }
+    var termoBusca by remember { mutableStateOf("") }
+    val materiasFiltradas = remember(materias, termoBusca) {
+        if (termoBusca.isBlank()) materias
+        else materias.filter { it.materia.nome.contains(termoBusca, ignoreCase = true) }
+    }
 
     Scaffold(
         topBar = {
@@ -66,37 +72,51 @@ fun MateriasScreen(
             }
         }
     ) { padding ->
-        if (materias.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Filled.MenuBook,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.padding(4.dp))
-                    Text("Nenhuma matéria cadastrada ainda.\nToque em + para começar.", modifier = Modifier.padding(16.dp))
-                }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (materias.size > 1) {
+                CampoDeBusca(
+                    valor = termoBusca,
+                    onValorAlterado = { termoBusca = it },
+                    placeholder = "Buscar matéria",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(materias, key = { it.materia.id }) { item ->
-                    MateriaCard(
-                        item = item,
-                        onClick = { onAbrirMateria(item.materia.id) },
-                        onEditar = {
-                            materiaEmEdicao = item.materia
-                            dialogoAberto = true
-                        },
-                        onExcluir = { materiaParaExcluir = item.materia }
-                    )
+            if (materias.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Filled.MenuBook,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.padding(4.dp))
+                        Text("Nenhuma matéria cadastrada ainda.\nToque em + para começar.", modifier = Modifier.padding(16.dp))
+                    }
                 }
-                item { Spacer(Modifier.padding(40.dp)) }
+            } else if (materiasFiltradas.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Nenhuma matéria encontrada para \"$termoBusca\".", modifier = Modifier.padding(16.dp))
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(materiasFiltradas, key = { it.materia.id }) { item ->
+                        MateriaCard(
+                            item = item,
+                            onClick = { onAbrirMateria(item.materia.id) },
+                            onEditar = {
+                                materiaEmEdicao = item.materia
+                                dialogoAberto = true
+                            },
+                            onExcluir = { materiaParaExcluir = item.materia }
+                        )
+                    }
+                    item { Spacer(Modifier.padding(40.dp)) }
+                }
             }
         }
     }

@@ -48,3 +48,28 @@ fun abrirSeletorDeDataEHora(
         dia
     ).show()
 }
+
+/** Abre só o seletor nativo de data (sem horário), usado para navegar entre dias no Caderno. */
+fun abrirSeletorDeData(
+    context: Context,
+    dataInicialMillis: Long? = null,
+    onDataSelecionada: (Long) -> Unit
+) {
+    val calendario = Calendar.getInstance()
+    if (dataInicialMillis != null) {
+        calendario.timeInMillis = dataInicialMillis
+    }
+    DatePickerDialog(
+        context,
+        { _, anoEscolhido, mesEscolhido, diaEscolhido ->
+            val resultado = Calendar.getInstance().apply {
+                set(anoEscolhido, mesEscolhido, diaEscolhido, 0, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            onDataSelecionada(resultado.timeInMillis)
+        },
+        calendario.get(Calendar.YEAR),
+        calendario.get(Calendar.MONTH),
+        calendario.get(Calendar.DAY_OF_MONTH)
+    ).show()
+}

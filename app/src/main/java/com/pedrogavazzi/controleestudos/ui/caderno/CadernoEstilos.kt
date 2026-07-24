@@ -4,7 +4,12 @@ package com.pedrogavazzi.controleestudos.ui.caderno
  *  no mesmo trecho), diferente de negrito/itálico/realce que podem coexistir. */
 private val TIPOS_DE_TAMANHO = setOf(TipoEstilo.TITULO, TipoEstilo.GRANDE, TipoEstilo.PEQUENO)
 
-/** Verifica se todo o trecho [inicio, fim) já está coberto por algum estilo do [tipo]. */
+/** Verifica se todo o trecho [inicio, fim) já está coberto por algum estilo do [tipo] —
+ *  usado tanto para decidir se um toque no botão de formatação aplica ou remove, quanto
+ *  para destacar o botão quando a seleção atual já tem aquele estilo. */
+fun trechoTemEstilo(estilos: List<EstiloAplicado>, tipo: TipoEstilo, inicio: Int, fim: Int): Boolean =
+    estaTotalmenteCoberto(estilos, tipo, inicio, fim)
+
 private fun estaTotalmenteCoberto(estilos: List<EstiloAplicado>, tipo: TipoEstilo, inicio: Int, fim: Int): Boolean {
     if (inicio >= fim) return false
     var cursor = inicio
@@ -70,4 +75,50 @@ fun aplicarTamanho(estilos: List<EstiloAplicado>, tipo: TipoEstilo?, inicio: Int
     }
     if (tipo != null) restantes.add(EstiloAplicado(inicio, fim, tipo))
     return outros + restantes
+}
+
+/**
+ * CORREÇÃO DO BUG CRÍTICO: quando o texto do caderno é editado (digitar ou apagar caracteres),
+ * as posições dos estilos já aplicados precisam se mover junto — senão a formatação "escorrega"
+ * para um trecho diferente do texto. Compara [textoAntigo] com [textoNovo] pelo prefixo/sufixo
+ * comum (a forma mais simples de achar "o que mudou" numa edição de texto) e desloca cada
+ * estilo de acordo: posições antes da edição não mudam, posições depois somam/subtraem a
+ * diferença de tamanho, e um estilo que caía inteiramente dentro do trecho apagado é descartado.
+ */
+fun ajustarEstilosParaEdicao(
+    estilos: List<EstiloAplicado>,
+    textoAntigo: String,
+    textoNovo: String
+): List<EstiloAplicado> {
+    if (textoAntigo == textoNovo || estilos.isEmpty()) return estilos
+
+    val tamanhoMinimo = minOf(textoAntigo.length, textoNovo.length)
+    var prefixoComum = 0
+    while (prefixoComum < tamanhoMinimo && textoAntigo[prefixoComum] == textoNovo[prefixoComum]) {
+        prefixoComum++
+    }
+    var sufixoComum = 0
+    val limiteSufixo = tamanhoMinimo - prefixoComum
+    while (sufixoComum < limiteSufixo &&
+        textoAntigo[textoAntigo.length - 1 - sufixoComum] == textoNovo[textoNovo.length - 1 - sufixoComum]
+    ) {
+        sufixoComum++
+    }
+
+    val removidoInicio = prefixoComum
+    val removidoFim = textoAntigo.length - sufixoComum
+    val inseridoFim = textoNovo.length - sufixoComum
+    val tamanhoInserido = inseridoFim - removidoInicio
+
+    fun remapPosicao(posicao: Int): Int = when {
+        posicao <= removidoInicio -> posicao
+        posicao >= removidoFim -> posicao - (removidoFim - removidoInicio) + tamanhoInserido
+        else -> removidoInicio // a posição caía dentro do trecho apagado/substituído
+    }
+
+    return estilos.mapNotNull { estilo ->
+        val novoInicio = remapPosicao(estilo.inicio)
+        val novoFim = remapPosicao(estilo.fim)
+        if (novoFim <= novoInicio) null else estilo.copy(inicio = novoInicio, fim = novoFim)
+    }
 }

@@ -1,5 +1,10 @@
 package com.pedrogavazzi.controleestudos.ui.configuracoes
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -10,12 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -24,14 +32,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.pedrogavazzi.controleestudos.data.OPCOES_ANTECEDENCIA_MINUTOS
 import com.pedrogavazzi.controleestudos.data.TemaApp
 import com.pedrogavazzi.controleestudos.ui.theme.FormaCard
@@ -41,6 +59,7 @@ import com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal
 @Composable
 fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
     val tema by viewModel.tema.collectAsState()
+    val usarCorDinamica by viewModel.usarCorDinamica.collectAsState()
     val notificacoesAtivadas by viewModel.notificacoesAtivadas.collectAsState()
     val somAtivado by viewModel.somAtivado.collectAsState()
     val vibracaoAtivada by viewModel.vibracaoAtivada.collectAsState()
@@ -75,6 +94,19 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                             label = { Text("Escuro") }
                         )
                     }
+                    Column(Modifier.padding(top = 12.dp)) {
+                        LinhaOpcao(
+                            titulo = "Usar cor do papel de parede (Material You)",
+                            checked = usarCorDinamica,
+                            onCheckedChange = { viewModel.definirUsarCorDinamica(it) }
+                        )
+                        Text(
+                            "Desligado, o app usa sempre as cores roxas originais, combinando "
+                                + "melhor com as cores escolhidas para cada matéria.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -86,6 +118,10 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                         onCheckedChange = { viewModel.definirNotificacoesAtivadas(it) }
                     )
                 }
+            }
+
+            if (notificacoesAtivadas && !permissaoNotificacaoConcedida()) {
+                item { AvisoPermissaoNegada() }
             }
 
             item {
@@ -135,6 +171,8 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                 }
             }
 
+            item { SecaoExportar(viewModel) }
+
             item {
                 Text(
                     "Controle de Estudos",
@@ -144,6 +182,32 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SecaoExportar(viewModel: ConfiguracoesViewModel) {
+    val context = LocalContext.current
+    SecaoConfiguracao(titulo = "Dados", icone = Icons.Filled.Download) {
+        Text(
+            "Gera um resumo em texto de todas as matérias e aulas cadastradas, para guardar "
+                + "ou compartilhar como backup manual.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        TextButton(
+            onClick = {
+                viewModel.gerarTextoExportacao { texto ->
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, texto)
+                        putExtra(Intent.EXTRA_SUBJECT, "Controle de Estudos — exportação de dados")
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Exportar dados"))
+                }
+            },
+            modifier = Modifier.padding(top = 4.dp)
+        ) { Text("Exportar dados") }
     }
 }
 
@@ -192,5 +256,73 @@ private fun LinhaOpcao(
     ) {
         Text(titulo, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = habilitada)
+    }
+}
+
+/**
+ * Verifica se a permissão de notificação do sistema (Android 13+) está concedida, e reconfere
+ * automaticamente quando a tela volta ao primeiro plano — importante porque o usuário pode ter
+ * ido conceder a permissão nas configurações do sistema e voltado para o app.
+ */
+@Composable
+private fun permissaoNotificacaoConcedida(): Boolean {
+    val context = LocalContext.current
+
+    fun checar(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    var concedida by remember { mutableStateOf(checar()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) concedida = checar()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return concedida
+}
+
+@Composable
+private fun AvisoPermissaoNegada() {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = FormaCard,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.NotificationsOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    "Permissão de notificação desligada no sistema",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(start = 8.dp).weight(1f)
+                )
+            }
+            Text(
+                "As notificações estão ativadas aqui no app, mas o Android está bloqueando "
+                    + "notificações do Controle de Estudos — nenhum alerta vai tocar até isso ser liberado.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            TextButton(
+                onClick = {
+                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    }
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.padding(top = 4.dp)
+            ) { Text("Abrir configurações de notificação") }
+        }
     }
 }

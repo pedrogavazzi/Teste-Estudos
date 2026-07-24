@@ -2,7 +2,6 @@ package com.pedrogavazzi.controleestudos.data
 
 import android.content.Context
 import com.pedrogavazzi.controleestudos.notifications.AlarmScheduler
-import java.util.Calendar
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -37,34 +36,50 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
     }
 
     /**
-     * Atualiza nome/cor da matéria e, se o número de aulas mudou, ajusta a lista:
-     * cria aulas novas no final (sem data) ou remove as aulas excedentes a partir do final.
+     * Atualiza nome/cor da matéria e, se o número de aulas mudou, ajusta a lista por
+     * QUANTIDADE (não mais comparando contra o maior número existente) — como aulas avulsas
+     * podem ser adicionadas/excluídas individualmente, a numeração pode ter buracos, e a
+     * lógica antiga (baseada em "numero > novoTotalAulas") podia duplicar ou apagar a aula
+     * errada nesse caso. Ao diminuir, prioriza remover aulas ainda "vazias" (sem data,
+     * observação, caderno ou conclusão) antes de qualquer aula com conteúdo do usuário.
      */
     suspend fun atualizarMateria(materia: Materia, novoTotalAulas: Int) {
-        val totalAtual = aulaDao.contarAulasDaMateria(materia.id)
+        val aulasAtuais = aulaDao.buscarTodasDaMateriaSuspend(materia.id)
+        val totalAtual = aulasAtuais.size
         materiaDao.atualizar(materia.copy(totalAulas = novoTotalAulas))
 
         if (novoTotalAulas > totalAtual) {
-            val novasAulas = (totalAtual + 1..novoTotalAulas).map { numero ->
-                Aula(materiaId = materia.id, numero = numero)
+            val maiorNumero = aulasAtuais.maxOfOrNull { it.numero } ?: 0
+            val novasAulas = (1..(novoTotalAulas - totalAtual)).map { indice ->
+                Aula(materiaId = materia.id, numero = maiorNumero + indice)
             }
             aulaDao.inserirTodas(novasAulas)
         } else if (novoTotalAulas < totalAtual) {
-            // Cancela alarmes das aulas que serão removidas antes de excluir do banco.
-            aulaDao.buscarTodasDaMateriaSuspend(materia.id)
-                .filter { it.numero > novoTotalAulas }
-                .forEach { alarmScheduler.cancelar(it) }
-            removerAulasExcedentes(materia.id, novoTotalAulas)
+            val quantidadeARemover = totalAtual - novoTotalAulas
+            val candidatasARemover = aulasAtuais.sortedWith(
+                compareBy<Aula> { aulaTemConteudo(it) }.thenByDescending { it.numero }
+            )
+            val aRemover = candidatasARemover.take(quantidadeARemover)
+            aRemover.forEach { alarmScheduler.cancelar(it) }
+            aRemover.forEach { aulaDao.excluir(it) }
         }
     }
 
-    private suspend fun removerAulasExcedentes(materiaId: Long, novoTotalAulas: Int) {
-        aulaDao.removerAulasAcimaDoNumero(materiaId, novoTotalAulas)
-    }
+    /** Uma aula "vazia" (sem data, observação, anotações do caderno ou conclusão) pode ser
+     *  removida com segurança primeiro ao diminuir o número de aulas de uma matéria. */
+    private fun aulaTemConteudo(aula: Aula): Boolean =
+        aula.dataHoraMillis != null || aula.observacao.isNotBlank() ||
+            aula.anotacoesCaderno.isNotBlank() || aula.concluida || aula.nomePersonalizado != null
 
     suspend fun excluirMateria(materia: Materia) {
         aulaDao.buscarTodasDaMateriaSuspend(materia.id).forEach { alarmScheduler.cancelar(it) }
         materiaDao.excluir(materia)
+    }
+
+    /** Busca todas as matérias com suas aulas de uma vez, para exportar um resumo em texto. */
+    suspend fun buscarTudoParaExportacao(): List<Pair<Materia, List<Aula>>> {
+        val materias = materiaDao.buscarTodasSuspend()
+        return materias.map { materia -> materia to aulaDao.buscarTodasDaMateriaSuspend(materia.id).sortedBy { it.numero } }
     }
 
     // ---------- Aulas ----------
@@ -132,40 +147,14 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
             .sortedBy { it.numero }
             .take(quantidade)
 
-        val calendario = Calendar.getInstance().apply { timeInMillis = dataHoraInicialMillis }
-        if (apenasDiasUteis) empurrarParaDiaUtil(calendario)
+        val datas = AgendamentoUtil.calcularDatas(
+            dataHoraInicialMillis, intervaloDias, aulasParaAgendar.size, apenasDiasUteis
+        )
 
-        aulasParaAgendar.forEachIndexed { indice, aula ->
-            if (indice > 0) {
-                val passo = intervaloDias.coerceAtLeast(1)
-                if (apenasDiasUteis) {
-                    adicionarDiasUteis(calendario, passo)
-                } else {
-                    calendario.add(Calendar.DAY_OF_YEAR, passo)
-                }
-            }
-            val atualizada = aula.copy(dataHoraMillis = calendario.timeInMillis)
+        aulasParaAgendar.zip(datas).forEach { (aula, data) ->
+            val atualizada = aula.copy(dataHoraMillis = data)
             aulaDao.atualizar(atualizada)
             sincronizarAlarme(atualizada)
-        }
-    }
-
-    /** Empurra para a próxima segunda-feira se a data cair em sábado ou domingo (só a 1ª aula). */
-    private fun empurrarParaDiaUtil(calendario: Calendar) {
-        while (calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || calendario.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-            calendario.add(Calendar.DAY_OF_YEAR, 1)
-        }
-    }
-
-    /** Avança exatamente [quantidade] dias ÚTEIS (sábado/domingo não contam nem são destino). */
-    private fun adicionarDiasUteis(calendario: Calendar, quantidade: Int) {
-        var restante = quantidade
-        while (restante > 0) {
-            calendario.add(Calendar.DAY_OF_YEAR, 1)
-            val diaDaSemana = calendario.get(Calendar.DAY_OF_WEEK)
-            if (diaDaSemana != Calendar.SATURDAY && diaDaSemana != Calendar.SUNDAY) {
-                restante--
-            }
         }
     }
 
@@ -202,21 +191,21 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
     /**
      * Agenda ou cancela o alarme de uma aula com base nas preferências GLOBAIS de notificação
      * (não mais por aula) — se notificações estiverem desligadas nas Configurações, nenhuma
-     * aula dispara alerta, mesmo com data futura.
+     * aula dispara alerta, mesmo com data futura. Se a antecedência configurada for maior que
+     * o tempo restante até a aula (ex.: antecedência de 60 min mas a aula é daqui a 30 min),
+     * o alerta dispara o quanto antes em vez de simplesmente não ser agendado.
      */
     private suspend fun sincronizarAlarme(aula: Aula) {
         val horario = aula.dataHoraMillis
-        val horarioComAntecedencia = horario?.let {
-            it - preferencias.minutosAntecedencia.value * 60_000L
-        }
-        if (preferencias.notificacoesAtivadas.value && !aula.concluida && horarioComAntecedencia != null &&
-            horarioComAntecedencia > System.currentTimeMillis()
-        ) {
+        val agora = System.currentTimeMillis()
+        if (preferencias.notificacoesAtivadas.value && !aula.concluida && horario != null && horario > agora) {
+            val horarioComAntecedencia = horario - preferencias.minutosAntecedencia.value * 60_000L
+            val horarioDisparo = if (horarioComAntecedencia > agora) horarioComAntecedencia else agora
             val materia = materiaDao.buscarPorId(aula.materiaId)
             alarmScheduler.agendar(
                 aula = aula,
                 nomeMateria = materia?.nome ?: "Matéria",
-                horarioDispararMillis = horarioComAntecedencia,
+                horarioDispararMillis = horarioDisparo,
                 somAtivado = preferencias.somAtivado.value,
                 vibracaoAtivada = preferencias.vibracaoAtivada.value
             )
@@ -234,16 +223,18 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
             return
         }
         val antecedenciaMillis = preferencias.minutosAntecedencia.value * 60_000L
+        val agora = System.currentTimeMillis()
         aulaDao.buscarTodasSuspend()
             .filter { it.dataHoraMillis != null && !it.concluida }
             .forEach { aula ->
-                val horarioComAntecedencia = aula.dataHoraMillis!! - antecedenciaMillis
-                if (horarioComAntecedencia > System.currentTimeMillis()) {
+                if (aula.dataHoraMillis!! > agora) {
+                    val horarioComAntecedencia = aula.dataHoraMillis - antecedenciaMillis
+                    val horarioDisparo = if (horarioComAntecedencia > agora) horarioComAntecedencia else agora
                     val nomeMateria = materiasPorId[aula.materiaId]?.nome ?: "Matéria"
                     alarmScheduler.agendar(
                         aula = aula,
                         nomeMateria = nomeMateria,
-                        horarioDispararMillis = horarioComAntecedencia,
+                        horarioDispararMillis = horarioDisparo,
                         somAtivado = preferencias.somAtivado.value,
                         vibracaoAtivada = preferencias.vibracaoAtivada.value
                     )

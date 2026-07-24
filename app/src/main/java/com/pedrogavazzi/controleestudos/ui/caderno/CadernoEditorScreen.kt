@@ -187,8 +187,12 @@ fun CadernoEditorScreen(
         bottomBar = {
             if (!modoLeitura) {
                 Column {
+                    val selecaoAtual = campo.selection
                     BarraDeFormatacao(
-                        temSelecao = !campo.selection.collapsed,
+                        temSelecao = !selecaoAtual.collapsed,
+                        negritoAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.NEGRITO, selecaoAtual.min, selecaoAtual.max),
+                        italicoAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.ITALICO, selecaoAtual.min, selecaoAtual.max),
+                        realceAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.REALCE, selecaoAtual.min, selecaoAtual.max),
                         onNegritoClick = { aplicarEstilo(TipoEstilo.NEGRITO) },
                         onItalicoClick = { aplicarEstilo(TipoEstilo.ITALICO) },
                         onRealceClick = { aplicarEstilo(TipoEstilo.REALCE) },
@@ -233,7 +237,14 @@ fun CadernoEditorScreen(
                 ) {
                     BasicTextField(
                         value = campo,
-                        onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
+                        onValueChange = { novoValor ->
+                            if (!modoLeitura) {
+                                if (novoValor.text != campo.text) {
+                                    estilos = ajustarEstilosParaEdicao(estilos, campo.text, novoValor.text)
+                                }
+                                campo = novoValor
+                            }
+                        },
                         readOnly = modoLeitura,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 16.sp,
@@ -282,12 +293,16 @@ private fun construirAnnotatedString(texto: String, estilos: List<EstiloAplicado
 @Composable
 private fun BarraDeFormatacao(
     temSelecao: Boolean,
+    negritoAtivo: Boolean,
+    italicoAtivo: Boolean,
+    realceAtivo: Boolean,
     onNegritoClick: () -> Unit,
     onItalicoClick: () -> Unit,
     onRealceClick: () -> Unit,
     onTamanhoSelecionado: (TipoEstilo?) -> Unit
 ) {
     var menuTamanhoAberto by remember { mutableStateOf(false) }
+    val corAtiva = MaterialTheme.colorScheme.primaryContainer
 
     Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
         Column {
@@ -295,13 +310,31 @@ private fun BarraDeFormatacao(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onNegritoClick, enabled = temSelecao) {
+                IconButton(
+                    onClick = onNegritoClick,
+                    enabled = temSelecao,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (negritoAtivo) corAtiva else Color.Transparent
+                    )
+                ) {
                     Icon(Icons.Filled.FormatBold, contentDescription = "Negrito")
                 }
-                IconButton(onClick = onItalicoClick, enabled = temSelecao) {
+                IconButton(
+                    onClick = onItalicoClick,
+                    enabled = temSelecao,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (italicoAtivo) corAtiva else Color.Transparent
+                    )
+                ) {
                     Icon(Icons.Filled.FormatItalic, contentDescription = "Itálico")
                 }
-                IconButton(onClick = onRealceClick, enabled = temSelecao) {
+                IconButton(
+                    onClick = onRealceClick,
+                    enabled = temSelecao,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (realceAtivo) corAtiva else Color.Transparent
+                    )
+                ) {
                     Icon(
                         Icons.Filled.FormatColorFill,
                         contentDescription = "Realçar",

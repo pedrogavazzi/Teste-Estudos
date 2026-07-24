@@ -31,6 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +45,7 @@ import com.pedrogavazzi.controleestudos.data.StatusAula
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
+import com.pedrogavazzi.controleestudos.ui.components.CampoDeBusca
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
@@ -57,12 +61,31 @@ private fun ehHoje(millis: Long): Boolean {
         hoje.get(Calendar.DAY_OF_YEAR) == data.get(Calendar.DAY_OF_YEAR)
 }
 
+/** Início do dia (00:00:00.000) em que [millis] cai — usado como chave de agrupamento, já que
+ *  o texto formatado ("Sexta-feira, 24/07") não inclui o ano e poderia juntar datas de anos
+ *  diferentes no mesmo grupo visual. */
+private fun inicioDoDia(millis: Long): Long = Calendar.getInstance().apply {
+    timeInMillis = millis
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaScreen(viewModel: AgendaViewModel) {
     val context = LocalContext.current
     val aulas by viewModel.aulasAgendadas.collectAsState()
-    val agrupadasPorData = aulas.groupBy { formatarDiaSemanaData(it.aula.dataHoraMillis!!) }
+    var termoBusca by remember { mutableStateOf("") }
+    val aulasFiltradas = remember(aulas, termoBusca) {
+        if (termoBusca.isBlank()) aulas
+        else aulas.filter {
+            it.nomeMateria.contains(termoBusca, ignoreCase = true) ||
+                it.aula.nomeExibido().contains(termoBusca, ignoreCase = true)
+        }
+    }
+    val agrupadasPorData = aulasFiltradas.groupBy { inicioDoDia(it.aula.dataHoraMillis!!) }
 
     Scaffold(
         topBar = {
@@ -71,31 +94,45 @@ fun AgendaScreen(viewModel: AgendaViewModel) {
             )
         }
     ) { padding ->
-        if (aulas.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Filled.CalendarMonth,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.padding(4.dp))
-                    Text(
-                        "Nenhuma aula agendada ainda.\nVá até uma matéria para marcar dia e horário das aulas.",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (aulas.size > 3) {
+                CampoDeBusca(
+                    valor = termoBusca,
+                    onValorAlterado = { termoBusca = it },
+                    placeholder = "Buscar matéria ou aula",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
-        } else {
+            if (aulas.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Filled.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.padding(4.dp))
+                        Text(
+                            "Nenhuma aula agendada ainda.\nVá até uma matéria para marcar dia e horário das aulas.",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else if (aulasFiltradas.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Nenhuma aula encontrada para \"$termoBusca\".", modifier = Modifier.padding(16.dp))
+                }
+            } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                agrupadasPorData.forEach { (dataFormatada, itensDoDia) ->
-                    val diaEhHoje = itensDoDia.first().aula.dataHoraMillis?.let { ehHoje(it) } == true
-                    item(key = "cabecalho_$dataFormatada") {
+                agrupadasPorData.forEach { (inicioDia, itensDoDia) ->
+                    val diaEhHoje = ehHoje(inicioDia)
+                    val dataFormatada = formatarDiaSemanaData(inicioDia)
+                    item(key = "cabecalho_$inicioDia") {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                             Text(
                                 dataFormatada,
@@ -137,6 +174,7 @@ fun AgendaScreen(viewModel: AgendaViewModel) {
                     }
                 }
                 item { Spacer(Modifier.padding(40.dp)) }
+            }
             }
         }
     }
