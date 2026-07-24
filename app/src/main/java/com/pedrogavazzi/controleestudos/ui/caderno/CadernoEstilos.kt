@@ -111,7 +111,7 @@ fun ajustarEstilosParaEdicao(
     val tamanhoInserido = inseridoFim - removidoInicio
 
     fun remapPosicao(posicao: Int): Int = when {
-        posicao <= removidoInicio -> posicao
+        posicao < removidoInicio -> posicao
         posicao >= removidoFim -> posicao - (removidoFim - removidoInicio) + tamanhoInserido
         else -> removidoInicio // a posição caía dentro do trecho apagado/substituído
     }
