@@ -6,6 +6,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,8 +38,20 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    aulaIdParaAbrirCaderno: Long? = null,
+    onAulaAbertaPeloDeepLink: () -> Unit = {}
+) {
     val navController = rememberNavController()
+
+    // Veio de um toque na notificação: abre direto o caderno daquela aula, por cima de
+    // qualquer tela em que o app estivesse.
+    LaunchedEffect(aulaIdParaAbrirCaderno) {
+        if (aulaIdParaAbrirCaderno != null) {
+            navController.navigate(Destino.CadernoEditor.rotaComId(aulaIdParaAbrirCaderno, somenteLeitura = false))
+            onAulaAbertaPeloDeepLink()
+        }
+    }
 
     Scaffold(
         bottomBar = { BarraNavegacaoInferior(navController) }

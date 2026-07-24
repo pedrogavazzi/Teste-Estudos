@@ -67,7 +67,14 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
-                    title = { Text(if (ehHoje) "Caderno de hoje" else "Caderno") }
+                    title = { Text(if (ehHoje) "Caderno de hoje" else "Caderno") },
+                    actions = {
+                        if (!ehHoje) {
+                            IconButton(onClick = { viewModel.irParaHoje() }) {
+                                Icon(Icons.Filled.Today, contentDescription = "Ir para hoje")
+                            }
+                        }
+                    }
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
@@ -88,11 +95,6 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
                     }
                     IconButton(onClick = { viewModel.diaSeguinte() }) {
                         Icon(Icons.Filled.ChevronRight, contentDescription = "Próximo dia")
-                    }
-                    if (!ehHoje) {
-                        IconButton(onClick = { viewModel.irParaHoje() }) {
-                            Icon(Icons.Filled.Today, contentDescription = "Ir para hoje")
-                        }
                     }
                 }
             }

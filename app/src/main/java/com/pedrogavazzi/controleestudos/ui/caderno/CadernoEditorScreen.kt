@@ -296,9 +296,9 @@ private fun construirAnnotatedString(texto: String, estilos: List<EstiloAplicado
                 TipoEstilo.NEGRITO -> SpanStyle(fontWeight = FontWeight.Bold)
                 TipoEstilo.ITALICO -> SpanStyle(fontStyle = FontStyle.Italic)
                 TipoEstilo.REALCE -> SpanStyle(background = CorRealce)
-                TipoEstilo.TITULO -> SpanStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                TipoEstilo.GRANDE -> SpanStyle(fontSize = 20.sp)
-                TipoEstilo.PEQUENO -> SpanStyle(fontSize = 13.sp)
+                TipoEstilo.TITULO -> SpanStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                TipoEstilo.GRANDE -> SpanStyle(fontSize = 22.sp)
+                TipoEstilo.PEQUENO -> SpanStyle(fontSize = 12.sp)
             }
             addStyle(spanStyle, inicio, fim)
         }

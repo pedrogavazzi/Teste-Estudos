@@ -24,7 +24,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     val usarCorDinamica: StateFlow<Boolean> = preferencias.usarCorDinamica
     val notificacoesAtivadas: StateFlow<Boolean> = preferencias.notificacoesAtivadas
     val somAtivado: StateFlow<Boolean> = preferencias.somAtivado
-    val vibracaoAtivada: StateFlow<Boolean> = preferencias.vibracaoAtivada
     val minutosAntecedencia: StateFlow<Int> = preferencias.minutosAntecedencia
 
     fun definirTema(tema: TemaApp) {
@@ -42,11 +41,6 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     fun definirSomAtivado(ativo: Boolean) {
         preferencias.definirSomAtivado(ativo)
-        reagendarAlarmes()
-    }
-
-    fun definirVibracaoAtivada(ativo: Boolean) {
-        preferencias.definirVibracaoAtivada(ativo)
         reagendarAlarmes()
     }
 

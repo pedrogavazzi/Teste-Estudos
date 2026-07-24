@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,7 +63,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
     val usarCorDinamica by viewModel.usarCorDinamica.collectAsState()
     val notificacoesAtivadas by viewModel.notificacoesAtivadas.collectAsState()
     val somAtivado by viewModel.somAtivado.collectAsState()
-    val vibracaoAtivada by viewModel.vibracaoAtivada.collectAsState()
     val minutosAntecedencia by viewModel.minutosAntecedencia.collectAsState()
     val permissaoConcedida = permissaoNotificacaoConcedida()
 
@@ -134,17 +132,6 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                         checked = somAtivado,
                         habilitada = notificacoesAtivadas,
                         onCheckedChange = { viewModel.definirSomAtivado(it) }
-                    )
-                }
-            }
-
-            item {
-                SecaoConfiguracao(titulo = "Vibração", icone = Icons.Filled.Vibration, habilitada = notificacoesAtivadas) {
-                    LinhaOpcao(
-                        titulo = "Vibrar na notificação",
-                        checked = vibracaoAtivada,
-                        habilitada = notificacoesAtivadas,
-                        onCheckedChange = { viewModel.definirVibracaoAtivada(it) }
                     )
                 }
             }

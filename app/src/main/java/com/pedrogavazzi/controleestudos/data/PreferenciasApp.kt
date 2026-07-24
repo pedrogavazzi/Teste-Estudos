@@ -12,10 +12,10 @@ enum class TemaApp { CLARO, ESCURO, SISTEMA }
 val OPCOES_ANTECEDENCIA_MINUTOS = listOf(0, 5, 10, 15, 30, 45, 60)
 
 /**
- * Preferências globais do app (tema, notificações, som, vibração, antecedência do alerta),
- * salvas em SharedPreferences e expostas como StateFlow para a UI reagir automaticamente.
- * Substitui as antigas configurações por aula — agora tudo é definido uma vez, na aba
- * Configurações, para não poluir a tela de cada aula.
+ * Preferências globais do app (tema, notificações, som, antecedência do alerta), salvas em
+ * SharedPreferences e expostas como StateFlow para a UI reagir automaticamente. Substitui as
+ * antigas configurações por aula — agora tudo é definido uma vez, na aba Configurações, para
+ * não poluir a tela de cada aula.
  */
 class PreferenciasApp(context: Context) {
 
@@ -38,14 +38,8 @@ class PreferenciasApp(context: Context) {
         prefs.edit().putBoolean(CHAVE_COR_DINAMICA, ativo).apply()
     }
 
-    private val _notificacoesAtivadas = MutableStateFlow(prefs.getBoolean(CHAVE_NOTIFICACOES, true))
-    val notificacoesAtivadas: StateFlow<Boolean> = _notificacoesAtivadas.asStateFlow()
-
     private val _somAtivado = MutableStateFlow(prefs.getBoolean(CHAVE_SOM, true))
     val somAtivado: StateFlow<Boolean> = _somAtivado.asStateFlow()
-
-    private val _vibracaoAtivada = MutableStateFlow(prefs.getBoolean(CHAVE_VIBRACAO, true))
-    val vibracaoAtivada: StateFlow<Boolean> = _vibracaoAtivada.asStateFlow()
 
     private val _minutosAntecedencia = MutableStateFlow(prefs.getInt(CHAVE_ANTECEDENCIA, 0))
     val minutosAntecedencia: StateFlow<Int> = _minutosAntecedencia.asStateFlow()
@@ -65,11 +59,6 @@ class PreferenciasApp(context: Context) {
         prefs.edit().putBoolean(CHAVE_SOM, ativo).apply()
     }
 
-    fun definirVibracaoAtivada(ativo: Boolean) {
-        _vibracaoAtivada.value = ativo
-        prefs.edit().putBoolean(CHAVE_VIBRACAO, ativo).apply()
-    }
-
     fun definirMinutosAntecedencia(minutos: Int) {
         _minutosAntecedencia.value = minutos
         prefs.edit().putInt(CHAVE_ANTECEDENCIA, minutos).apply()
@@ -81,7 +70,6 @@ class PreferenciasApp(context: Context) {
         const val CHAVE_COR_DINAMICA = "usar_cor_dinamica"
         const val CHAVE_NOTIFICACOES = "notificacoes_ativadas"
         const val CHAVE_SOM = "som_ativado"
-        const val CHAVE_VIBRACAO = "vibracao_ativada"
         const val CHAVE_ANTECEDENCIA = "minutos_antecedencia"
     }
 }

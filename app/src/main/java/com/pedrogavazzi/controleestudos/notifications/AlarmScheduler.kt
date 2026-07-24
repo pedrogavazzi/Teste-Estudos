@@ -9,8 +9,7 @@ import com.pedrogavazzi.controleestudos.data.Aula
 
 /**
  * Agenda e cancela os alarmes exatos (AlarmManager) que disparam a notificação de cada aula,
- * usando as preferências globais de som/vibração e a antecedência definida nas Configurações
- * (não mais opções por aula).
+ * usando a preferência global de som e a antecedência definidas nas Configurações.
  */
 class AlarmScheduler(private val context: Context) {
 
@@ -20,10 +19,9 @@ class AlarmScheduler(private val context: Context) {
         aula: Aula,
         nomeMateria: String,
         horarioDispararMillis: Long,
-        somAtivado: Boolean,
-        vibracaoAtivada: Boolean
+        somAtivado: Boolean
     ) {
-        val pendingIntent = criarPendingIntent(aula, nomeMateria, somAtivado, vibracaoAtivada)
+        val pendingIntent = criarPendingIntent(aula, nomeMateria, somAtivado)
 
         val podeAgendarExato = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
             alarmManager.canScheduleExactAlarms()
@@ -49,7 +47,7 @@ class AlarmScheduler(private val context: Context) {
     }
 
     fun cancelar(aula: Aula) {
-        val pendingIntent = criarPendingIntent(aula, "", somAtivado = true, vibracaoAtivada = true)
+        val pendingIntent = criarPendingIntent(aula, "", somAtivado = true)
         alarmManager.cancel(pendingIntent)
     }
 
@@ -60,18 +58,16 @@ class AlarmScheduler(private val context: Context) {
     private fun criarPendingIntent(
         aula: Aula,
         nomeMateria: String,
-        somAtivado: Boolean,
-        vibracaoAtivada: Boolean
+        somAtivado: Boolean
     ): PendingIntent {
         val intent = Intent(context, AulaAlarmReceiver::class.java).apply {
             putExtra(AulaAlarmReceiver.EXTRA_AULA_ID, aula.id)
             putExtra(AulaAlarmReceiver.EXTRA_NUMERO_AULA, aula.numero)
             putExtra(AulaAlarmReceiver.EXTRA_NOME_MATERIA, nomeMateria)
             putExtra(AulaAlarmReceiver.EXTRA_SOM_ATIVADO, somAtivado)
-            putExtra(AulaAlarmReceiver.EXTRA_VIBRACAO_ATIVADA, vibracaoAtivada)
         }
         // A chave do PendingIntent precisa ser igual entre agendar/cancelar da mesma aula,
-        // então usamos só o id da aula — os extras (som/vibração) podem mudar sem quebrar isso.
+        // então usamos só o id da aula — o extra (som) pode mudar sem quebrar isso.
         return PendingIntent.getBroadcast(
             context,
             aula.id.toInt(),

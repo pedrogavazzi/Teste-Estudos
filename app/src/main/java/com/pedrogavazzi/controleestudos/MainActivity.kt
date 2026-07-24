@@ -26,12 +26,17 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.core.content.ContextCompat
 import com.pedrogavazzi.controleestudos.data.TemaApp
+import com.pedrogavazzi.controleestudos.notifications.NotificationHelper
 import com.pedrogavazzi.controleestudos.ui.navigation.AppNavigation
 import com.pedrogavazzi.controleestudos.ui.theme.ControleDeEstudosTheme
 
 class MainActivity : ComponentActivity() {
+
+    private var aulaIdParaAbrirCaderno by mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        aulaIdParaAbrirCaderno = lerAulaIdDoIntent(intent)
         setContent {
             val preferencias = (application as ControleEstudosApp).preferencias
             val tema by preferencias.tema.collectAsState()
@@ -43,10 +48,24 @@ class MainActivity : ComponentActivity() {
             }
             ControleDeEstudosTheme(useDarkTheme = temaEscuro, dynamicColor = corDinamica) {
                 SolicitarPermissoesNecessarias()
-                AppNavigation()
+                AppNavigation(
+                    aulaIdParaAbrirCaderno = aulaIdParaAbrirCaderno,
+                    onAulaAbertaPeloDeepLink = { aulaIdParaAbrirCaderno = null }
+                )
             }
         }
     }
+
+    // Toque na notificação com o app já aberto cai aqui em vez de recriar a Activity
+    // (graças ao launchMode="singleTop" no manifesto).
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        aulaIdParaAbrirCaderno = lerAulaIdDoIntent(intent)
+    }
+
+    private fun lerAulaIdDoIntent(intent: Intent?): Long? =
+        intent?.getLongExtra(NotificationHelper.EXTRA_AULA_ID_ABRIR_CADERNO, -1L)?.takeIf { it != -1L }
 }
 
 /**

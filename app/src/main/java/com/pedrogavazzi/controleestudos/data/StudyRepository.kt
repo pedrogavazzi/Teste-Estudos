@@ -206,8 +206,7 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
                 aula = aula,
                 nomeMateria = materia?.nome ?: "Matéria",
                 horarioDispararMillis = horarioDisparo,
-                somAtivado = preferencias.somAtivado.value,
-                vibracaoAtivada = preferencias.vibracaoAtivada.value
+                somAtivado = preferencias.somAtivado.value
             )
         } else {
             alarmScheduler.cancelar(aula)
@@ -235,8 +234,7 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
                         aula = aula,
                         nomeMateria = nomeMateria,
                         horarioDispararMillis = horarioDisparo,
-                        somAtivado = preferencias.somAtivado.value,
-                        vibracaoAtivada = preferencias.vibracaoAtivada.value
+                        somAtivado = preferencias.somAtivado.value
                     )
                 } else {
                     alarmScheduler.cancelar(aula)
