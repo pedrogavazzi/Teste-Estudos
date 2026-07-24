@@ -64,6 +64,7 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
     val somAtivado by viewModel.somAtivado.collectAsState()
     val vibracaoAtivada by viewModel.vibracaoAtivada.collectAsState()
     val minutosAntecedencia by viewModel.minutosAntecedencia.collectAsState()
+    val permissaoConcedida = permissaoNotificacaoConcedida()
 
     Scaffold(
         topBar = {
@@ -120,7 +121,7 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                 }
             }
 
-            if (notificacoesAtivadas && !permissaoNotificacaoConcedida()) {
+            if (notificacoesAtivadas && !permissaoConcedida) {
                 item { AvisoPermissaoNegada() }
             }
 
