@@ -33,11 +33,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.ui.theme.VermelhoAlerta
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun DesempenhoScreen(viewModel: DesempenhoViewModel) {
     val desempenho by viewModel.desempenho.collectAsState()
 
-    Scaffold { padding ->
+    Scaffold(
+        topBar = {
+            androidx.compose.material3.CenterAlignedTopAppBar(
+                title = { Text("Desempenho", style = MaterialTheme.typography.titleLarge) }
+            )
+        }
+    ) { padding ->
         if (desempenho.totalAulas == 0) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

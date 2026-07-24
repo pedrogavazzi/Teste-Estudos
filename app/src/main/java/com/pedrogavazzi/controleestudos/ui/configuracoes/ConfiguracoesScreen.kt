@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -154,19 +156,20 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OPCOES_ANTECEDENCIA_MINUTOS.chunked(4).forEach { linha ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            linha.forEach { minutos ->
-                                FilterChip(
-                                    selected = minutosAntecedencia == minutos,
-                                    onClick = { viewModel.definirMinutosAntecedencia(minutos) },
-                                    enabled = notificacoesAtivadas,
-                                    label = { Text(if (minutos == 0) "Na hora" else "$minutos min") }
-                                )
-                            }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OPCOES_ANTECEDENCIA_MINUTOS.forEach { minutos ->
+                            FilterChip(
+                                selected = minutosAntecedencia == minutos,
+                                onClick = { viewModel.definirMinutosAntecedencia(minutos) },
+                                enabled = notificacoesAtivadas,
+                                label = { Text(if (minutos == 0) "Na hora" else "$minutos min") }
+                            )
                         }
                     }
                 }
@@ -176,7 +179,7 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
 
             item {
                 Text(
-                    "Controle de Estudos",
+                    "Controle de Estudos — versão ${obterVersaoDoApp(LocalContext.current)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(top = 16.dp)
@@ -191,24 +194,29 @@ private fun SecaoExportar(viewModel: ConfiguracoesViewModel) {
     val context = LocalContext.current
     SecaoConfiguracao(titulo = "Dados", icone = Icons.Filled.Download) {
         Text(
-            "Gera um resumo em texto de todas as matérias e aulas cadastradas, para guardar "
-                + "ou compartilhar como backup manual.",
+            "Gera um PDF com todas as matérias e aulas cadastradas — incluindo o caderno de "
+                + "cada aula que já tiver alguma anotação — para guardar ou compartilhar como "
+                + "backup manual.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         TextButton(
             onClick = {
-                viewModel.gerarTextoExportacao { texto ->
+                viewModel.gerarPdfExportacao { arquivo ->
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        context, "${context.packageName}.fileprovider", arquivo
+                    )
                     val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, texto)
+                        type = "application/pdf"
+                        putExtra(Intent.EXTRA_STREAM, uri)
                         putExtra(Intent.EXTRA_SUBJECT, "Controle de Estudos — exportação de dados")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(Intent.createChooser(intent, "Exportar dados"))
                 }
             },
             modifier = Modifier.padding(top = 4.dp)
-        ) { Text("Exportar dados") }
+        ) { Text("Exportar dados em PDF") }
     }
 }
 
@@ -259,6 +267,13 @@ private fun LinhaOpcao(
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = habilitada)
     }
 }
+
+/** Nome da versão instalada (ex.: "1.0") — mostrado no rodapé de Configurações; se não
+ *  conseguir ler por algum motivo, mostra um texto genérico em vez de quebrar a tela. */
+private fun obterVersaoDoApp(context: android.content.Context): String =
+    runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "—"
+    }.getOrDefault("—")
 
 /**
  * Verifica se a permissão de notificação do sistema (Android 13+) está concedida, e reconfere

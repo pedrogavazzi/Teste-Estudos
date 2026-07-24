@@ -3,7 +3,9 @@ package com.pedrogavazzi.controleestudos.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
 import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -33,7 +35,10 @@ class AulaAlarmReceiver : BroadcastReceiver() {
 
         // Vibração disparada diretamente pela API do sistema — mais confiável do que depender
         // só do padrão de vibração configurado no canal de notificação (que pode ser ignorado
-        // por alguns fabricantes/versões do Android).
+        // por alguns fabricantes/versões do Android). Marcada como vibração de "alarme" para
+        // tocar mesmo com o aparelho no modo silencioso/Não perturbe — do jeito que um
+        // despertador de verdade se comporta (sem esse atributo, o Android pode tratar como uma
+        // vibração comum e suprimir no silencioso, mesmo o app pedindo explicitamente pra vibrar).
         if (vibracaoAtivada) {
             vibrar(context)
         }
@@ -49,11 +54,24 @@ class AulaAlarmReceiver : BroadcastReceiver() {
         }
         if (vibrator?.hasVibrator() != true) return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(PADRAO_VIBRACAO, -1))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(PADRAO_VIBRACAO, -1)
+        val efeito = VibrationEffect.createWaveform(PADRAO_VIBRACAO, -1)
+        when {
+            Build.VERSION.SDK_INT >= 33 -> {
+                val atributos = VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM)
+                vibrator.vibrate(efeito, atributos)
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                val atributosAudio = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(efeito, atributosAudio)
+            }
+            else -> {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(PADRAO_VIBRACAO, -1)
+            }
         }
     }
 }

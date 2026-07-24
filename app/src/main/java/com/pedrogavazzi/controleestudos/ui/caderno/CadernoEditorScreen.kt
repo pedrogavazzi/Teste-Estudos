@@ -1,6 +1,5 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,8 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -89,6 +86,10 @@ fun CadernoEditorScreen(
     var estilosOriginais by remember { mutableStateOf(listOf<EstiloAplicado>()) }
     var inicializado by remember(aulaId) { mutableStateOf(false) }
     var modoLeitura by remember(aulaId) { mutableStateOf(somenteLeituraInicial) }
+    // Estilos "pendentes": ativados sem nenhum texto selecionado, pro modo apertar-a-formatação
+    // -e-depois-digitar — o próximo texto digitado já sai formatado.
+    var estilosPendentes by remember { mutableStateOf(setOf<TipoEstilo>()) }
+    var tamanhoPendente by remember { mutableStateOf<TipoEstilo?>(null) }
 
     LaunchedEffect(aula?.id, estado.carregando) {
         if (!inicializado && !estado.carregando && aula != null) {
@@ -117,14 +118,21 @@ fun CadernoEditorScreen(
 
     fun aplicarEstilo(tipo: TipoEstilo) {
         val selecao = campo.selection
-        if (selecao.collapsed) return
-        estilos = alternarEstilo(estilos, tipo, selecao.min, selecao.max)
+        if (!selecao.collapsed) {
+            estilos = alternarEstilo(estilos, tipo, selecao.min, selecao.max)
+        } else {
+            // Sem seleção: liga/desliga esse estilo pro que for digitado a seguir.
+            estilosPendentes = if (tipo in estilosPendentes) estilosPendentes - tipo else estilosPendentes + tipo
+        }
     }
 
     fun aplicarTamanhoSelecao(tipo: TipoEstilo?) {
         val selecao = campo.selection
-        if (selecao.collapsed) return
-        estilos = aplicarTamanho(estilos, tipo, selecao.min, selecao.max)
+        if (!selecao.collapsed) {
+            estilos = aplicarTamanho(estilos, tipo, selecao.min, selecao.max)
+        } else {
+            tamanhoPendente = tipo
+        }
     }
 
     Scaffold(
@@ -190,9 +198,9 @@ fun CadernoEditorScreen(
                     val selecaoAtual = campo.selection
                     BarraDeFormatacao(
                         temSelecao = !selecaoAtual.collapsed,
-                        negritoAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.NEGRITO, selecaoAtual.min, selecaoAtual.max),
-                        italicoAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.ITALICO, selecaoAtual.min, selecaoAtual.max),
-                        realceAtivo = !selecaoAtual.collapsed && trechoTemEstilo(estilos, TipoEstilo.REALCE, selecaoAtual.min, selecaoAtual.max),
+                        negritoAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.NEGRITO, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.NEGRITO in estilosPendentes,
+                        italicoAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.ITALICO, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.ITALICO in estilosPendentes,
+                        realceAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.REALCE, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.REALCE in estilosPendentes,
                         onNegritoClick = { aplicarEstilo(TipoEstilo.NEGRITO) },
                         onItalicoClick = { aplicarEstilo(TipoEstilo.ITALICO) },
                         onRealceClick = { aplicarEstilo(TipoEstilo.REALCE) },
@@ -216,7 +224,6 @@ fun CadernoEditorScreen(
                 Text(if (estado.carregando) "Carregando…" else "Aula não encontrada")
             }
         } else {
-            val focusManager = LocalFocusManager.current
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
@@ -230,17 +237,25 @@ fun CadernoEditorScreen(
                         .fillMaxSize()
                         .padding(20.dp)
                         .verticalScroll(rememberScrollState())
-                        // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor.
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = { focusManager.clearFocus() })
-                        }
+                    // Removido de propósito: um detector de toque próprio nessa área, usado
+                    // antes pra fechar a seleção ao tocar fora do texto, atrapalhava o toque
+                    // duplo/toque longo nativo do Android pra selecionar palavra — a seleção
+                    // e o teclado continuam fechando normalmente ao sair da tela ou apertar
+                    // voltar, sem precisar de um gesto customizado concorrendo com o do campo.
                 ) {
                     BasicTextField(
                         value = campo,
                         onValueChange = { novoValor ->
                             if (!modoLeitura) {
                                 if (novoValor.text != campo.text) {
-                                    estilos = ajustarEstilosParaEdicao(estilos, campo.text, novoValor.text)
+                                    estilos = ajustarEAplicarPendentes(
+                                        estilos, campo.text, novoValor.text, estilosPendentes, tamanhoPendente
+                                    )
+                                } else if (novoValor.selection != campo.selection) {
+                                    // Só moveu o cursor/seleção (sem digitar nada): sai do modo
+                                    // "apertar e digitar", já que ele era só pro próximo texto.
+                                    estilosPendentes = emptySet()
+                                    tamanhoPendente = null
                                 }
                                 campo = novoValor
                             }
@@ -312,7 +327,6 @@ private fun BarraDeFormatacao(
             ) {
                 IconButton(
                     onClick = onNegritoClick,
-                    enabled = temSelecao,
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (negritoAtivo) corAtiva else Color.Transparent
                     )
@@ -321,7 +335,6 @@ private fun BarraDeFormatacao(
                 }
                 IconButton(
                     onClick = onItalicoClick,
-                    enabled = temSelecao,
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (italicoAtivo) corAtiva else Color.Transparent
                     )
@@ -330,7 +343,6 @@ private fun BarraDeFormatacao(
                 }
                 IconButton(
                     onClick = onRealceClick,
-                    enabled = temSelecao,
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (realceAtivo) corAtiva else Color.Transparent
                     )
@@ -338,11 +350,11 @@ private fun BarraDeFormatacao(
                     Icon(
                         Icons.Filled.FormatColorFill,
                         contentDescription = "Realçar",
-                        tint = if (temSelecao) Color(0xFFC9A227) else MaterialTheme.colorScheme.outline
+                        tint = Color(0xFFC9A227)
                     )
                 }
                 Box {
-                    IconButton(onClick = { menuTamanhoAberto = true }, enabled = temSelecao) {
+                    IconButton(onClick = { menuTamanhoAberto = true }) {
                         Icon(Icons.Filled.FormatSize, contentDescription = "Tamanho do texto")
                     }
                     DropdownMenu(expanded = menuTamanhoAberto, onDismissRequest = { menuTamanhoAberto = false }) {
@@ -356,14 +368,13 @@ private fun BarraDeFormatacao(
                     }
                 }
             }
-            if (!temSelecao) {
-                Text(
-                    "Selecione um trecho do texto para aplicar formatação",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
-                )
-            }
+            Text(
+                if (temSelecao) "Formata o trecho selecionado"
+                else "Sem seleção: toque num botão pra formatar o que for digitado a seguir",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+            )
         }
     }
 }

@@ -5,9 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Divider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -20,15 +24,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pedrogavazzi.controleestudos.data.AgendamentoUtil
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 
+private const val QUANTIDADE_MAXIMA_NA_PREVIA = 5
+
 /**
- * Diálogo para agendar várias aulas ainda sem data de uma vez: define a data/horário da
- * primeira aula, o intervalo em dias entre cada uma (qualquer número, escolhido livremente),
- * se deve pular fins de semana, e quantas aulas devem receber esse padrão a partir da
- * próxima ainda não agendada.
+ * Diálogo para agendar várias aulas ainda sem data de uma vez. Organizado em três perguntas
+ * (quando começar, com que frequência, quantas aulas), com uma prévia das primeiras datas
+ * resultantes antes de confirmar — pra deixar claro o que vai acontecer antes de aplicar.
  */
 @Composable
 fun AgendamentoEmLoteDialog(
@@ -50,36 +57,52 @@ fun AgendamentoEmLoteDialog(
     val quantidadeValida = quantidade != null && quantidade in 1..quantidadeMaximaDisponivel
     val podeConfirmar = dataHoraInicial != null && intervaloValido && quantidadeValida
 
+    val datasPreview = remember(dataHoraInicial, intervalo, quantidade, apenasDiasUteis) {
+        val inicio = dataHoraInicial
+        if (inicio != null && intervaloValido && quantidadeValida) {
+            AgendamentoUtil.calcularDatas(inicio, intervalo!!, minOf(quantidade!!, QUANTIDADE_MAXIMA_NA_PREVIA), apenasDiasUteis)
+        } else {
+            emptyList()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Agendamento em lote") },
         text = {
-            Column {
-                Text("Agenda em sequência as próximas aulas que ainda não têm data, todas no mesmo horário do dia escolhido.")
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    "Preenche a data das próximas aulas que ainda não têm horário marcado " +
+                        "($quantidadeMaximaDisponivel disponível(is)), a partir da próxima na ordem.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                Row(modifier = Modifier.padding(top = 12.dp)) {
-                    OutlinedButton(onClick = {
+                RotuloSecao("Quando começar")
+                OutlinedButton(
+                    onClick = {
                         abrirSeletorDeDataEHora(context, dataHoraInicial) { novaData ->
                             dataHoraInicial = novaData
                         }
-                    }) {
-                        Text(
-                            if (dataHoraInicial == null) "Escolher data/horário da 1ª aula"
-                            else "1ª aula: ${formatarDataHora(dataHoraInicial)}"
-                        )
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (dataHoraInicial == null) "Escolher data/horário da 1ª aula *"
+                        else "1ª aula: ${formatarDataHora(dataHoraInicial)}"
+                    )
                 }
 
+                RotuloSecao("Com que frequência")
                 OutlinedTextField(
                     value = intervaloTexto,
                     onValueChange = { novo -> if (novo.all { it.isDigit() }) intervaloTexto = novo },
-                    label = { Text("Repetir a cada quantos dias") },
+                    label = { Text("Repetir a cada quantos dias *") },
                     supportingText = { Text("Ex.: 1 = todo dia, 7 = toda semana, ou qualquer número") },
                     singleLine = true,
                     isError = intervaloTexto.isNotBlank() && !intervaloValido,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
-
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -88,13 +111,47 @@ fun AgendamentoEmLoteDialog(
                     Text("Apenas em dias úteis (pula sábado e domingo)")
                 }
 
+                RotuloSecao("Quantas aulas")
                 OutlinedTextField(
                     value = quantidadeTexto,
                     onValueChange = { novo -> if (novo.all { it.isDigit() }) quantidadeTexto = novo },
-                    label = { Text("Quantidade de aulas a agendar (máx. $quantidadeMaximaDisponivel)") },
+                    label = { Text("Quantidade de aulas *") },
+                    supportingText = { Text("Máximo disponível: $quantidadeMaximaDisponivel") },
                     singleLine = true,
                     isError = quantidadeTexto.isNotBlank() && !quantidadeValida,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (datasPreview.isNotEmpty()) {
+                    Divider(Modifier.padding(top = 16.dp, bottom = 8.dp))
+                    Text(
+                        "Prévia",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    datasPreview.forEach { data ->
+                        Text(
+                            "• ${formatarDataHora(data)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    val restantes = (quantidade ?: 0) - datasPreview.size
+                    if (restantes > 0) {
+                        Text(
+                            "... e mais $restantes aula(s)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    "* obrigatório",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
         },
@@ -106,10 +163,23 @@ fun AgendamentoEmLoteDialog(
                         onConfirmar(inicio, intervalo ?: 1, quantidade ?: 0, apenasDiasUteis)
                     }
                 }
-            ) { Text("Agendar") }
+            ) {
+                Text(if (quantidadeValida) "Agendar $quantidade aula(s)" else "Agendar")
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
+    )
+}
+
+@Composable
+private fun RotuloSecao(texto: String) {
+    Text(
+        texto,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
     )
 }

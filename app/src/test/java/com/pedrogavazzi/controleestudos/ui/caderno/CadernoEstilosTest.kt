@@ -105,4 +105,56 @@ class CadernoEstilosTest {
         val resultado = aplicarTamanho(estilos, null, 0, 5)
         assertTrue(resultado.none { it.tipo in setOf(TipoEstilo.PEQUENO, TipoEstilo.GRANDE, TipoEstilo.TITULO) })
     }
+
+    // ---- Modo "apertar a formatação e depois digitar" ----
+
+    @Test
+    fun `estilo pendente aplica ao texto recem digitado`() {
+        var estilos = ajustarEAplicarPendentes(emptyList(), "", "Ola", emptySet(), null)
+        estilos = ajustarEAplicarPendentes(estilos, "Ola", "Ola mundo", setOf(TipoEstilo.NEGRITO), null)
+
+        val negrito = estilos.first { it.tipo == TipoEstilo.NEGRITO }
+        assertEquals(" mundo", "Ola mundo".substring(negrito.inicio, negrito.fim))
+    }
+
+    @Test
+    fun `estilo pendente continua mesclando enquanto o usuario segue digitando`() {
+        var estilos = ajustarEAplicarPendentes(emptyList(), "", "Ola", emptySet(), null)
+        estilos = ajustarEAplicarPendentes(estilos, "Ola", "Ola mundo", setOf(TipoEstilo.NEGRITO), null)
+        estilos = ajustarEAplicarPendentes(estilos, "Ola mundo", "Ola mundo!!!", setOf(TipoEstilo.NEGRITO), null)
+
+        assertEquals(1, estilos.size)
+        val negrito = estilos.first()
+        assertEquals(TipoEstilo.NEGRITO, negrito.tipo)
+        assertEquals(" mundo!!!", "Ola mundo!!!".substring(negrito.inicio, negrito.fim))
+    }
+
+    @Test
+    fun `desligar o estilo pendente impede heranca indevida no texto digitado depois`() {
+        // Esse teste pegou um bug real: o texto digitado logo após desligar o negrito estava
+        // "herdando" a formatação por coincidência de posição, mesmo sem estilo pendente.
+        var estilos = ajustarEAplicarPendentes(emptyList(), "", "abc", emptySet(), null)
+        estilos = ajustarEAplicarPendentes(estilos, "abc", "abcNEG", setOf(TipoEstilo.NEGRITO), null)
+        estilos = ajustarEAplicarPendentes(estilos, "abcNEG", "abcNEGxyz", emptySet(), null)
+
+        assertEquals(1, estilos.size)
+        val negrito = estilos.first()
+        assertEquals("NEG", "abcNEGxyz".substring(negrito.inicio, negrito.fim))
+    }
+
+    @Test
+    fun `tamanho pendente tambem se aplica ao texto recem digitado`() {
+        val estilos = ajustarEAplicarPendentes(emptyList(), "", "Título grande", emptySet(), TipoEstilo.TITULO)
+        val titulo = estilos.first { it.tipo == TipoEstilo.TITULO }
+        assertEquals("Título grande", "Título grande".substring(titulo.inicio, titulo.fim))
+    }
+
+    @Test
+    fun `apagar texto nao gera estilo mesmo com pendente ativo`() {
+        val estilos = ajustarEAplicarPendentes(
+            listOf(EstiloAplicado(0, 5, TipoEstilo.NEGRITO)), "abcde", "abc", setOf(TipoEstilo.ITALICO), null
+        )
+        // Apagar não insere nada, então nenhum ITALICO deveria aparecer — só o reajuste do NEGRITO.
+        assertTrue(estilos.none { it.tipo == TipoEstilo.ITALICO })
+    }
 }

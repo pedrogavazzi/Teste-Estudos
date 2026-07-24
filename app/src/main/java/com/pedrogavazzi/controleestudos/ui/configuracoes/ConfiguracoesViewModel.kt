@@ -4,13 +4,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
+import com.pedrogavazzi.controleestudos.data.ExportadorPdf
 import com.pedrogavazzi.controleestudos.data.PreferenciasApp
 import com.pedrogavazzi.controleestudos.data.StudyRepository
 import com.pedrogavazzi.controleestudos.data.TemaApp
-import com.pedrogavazzi.controleestudos.data.nomeExibido
-import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
+import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ConfiguracoesViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -58,34 +60,19 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch { repository.reagendarTodosOsAlarmes() }
     }
 
-    /** Monta um resumo em texto simples de todas as matérias e aulas, para exportar/compartilhar
-     *  como um backup manual — já que o app não tem exportação nenhuma além do backup
-     *  automático do Android. [aoConcluir] recebe o texto pronto. */
-    fun gerarTextoExportacao(aoConcluir: (String) -> Unit) {
+    /**
+     * Gera um PDF com o resumo de todas as matérias e aulas — incluindo o texto do caderno
+     * de cada aula que tiver anotação de verdade (cadernos vazios ficam de fora) — e devolve
+     * o arquivo pronto pra compartilhar. Roda em uma thread de I/O porque desenhar o PDF e
+     * escrever no disco não deve travar a tela.
+     */
+    fun gerarPdfExportacao(aoConcluir: (File) -> Unit) {
         viewModelScope.launch {
             val dados = repository.buscarTudoParaExportacao()
-            val texto = buildString {
-                appendLine("Controle de Estudos — exportação de dados")
-                appendLine("Gerado em ${formatarDataHora(System.currentTimeMillis())}")
-                appendLine()
-                if (dados.isEmpty()) {
-                    appendLine("Nenhuma matéria cadastrada ainda.")
-                }
-                dados.forEach { (materia, aulas) ->
-                    val concluidas = aulas.count { it.concluida }
-                    appendLine("${materia.nome} — $concluidas de ${aulas.size} aulas concluídas")
-                    aulas.forEach { aula ->
-                        val dataTexto = aula.dataHoraMillis?.let { formatarDataHora(it) } ?: "sem data definida"
-                        val statusTexto = if (aula.concluida) "concluída" else "pendente"
-                        appendLine("  • ${aula.nomeExibido()} — $dataTexto ($statusTexto)")
-                        if (aula.observacao.isNotBlank()) {
-                            appendLine("      Observação: ${aula.observacao}")
-                        }
-                    }
-                    appendLine()
-                }
+            val arquivo = withContext(Dispatchers.IO) {
+                ExportadorPdf.gerar(app, dados)
             }
-            aoConcluir(texto)
+            aoConcluir(arquivo)
         }
     }
 }

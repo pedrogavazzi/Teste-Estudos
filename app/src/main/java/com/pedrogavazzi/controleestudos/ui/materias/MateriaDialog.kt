@@ -62,7 +62,7 @@ fun MateriaDialog(
                 OutlinedTextField(
                     value = nome,
                     onValueChange = { novo -> if (novo.length <= TAMANHO_MAXIMO_NOME_MATERIA) nome = novo },
-                    label = { Text("Nome da matéria") },
+                    label = { Text("Nome da matéria *") },
                     supportingText = { Text("${nome.length}/$TAMANHO_MAXIMO_NOME_MATERIA") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -71,7 +71,7 @@ fun MateriaDialog(
                 OutlinedTextField(
                     value = totalAulasTexto,
                     onValueChange = { novo -> if (novo.all { it.isDigit() }) totalAulasTexto = novo },
-                    label = { Text("Número de aulas") },
+                    label = { Text("Número de aulas *") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -92,6 +92,12 @@ fun MateriaDialog(
                         }
                     }
                 }
+                Text(
+                    "* obrigatório",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
             }
         },
         confirmButton = {
