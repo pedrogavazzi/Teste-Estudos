@@ -1,59 +1,75 @@
 package com.pedrogavazzi.controleestudos.data
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
-import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "configuracoes_app")
+/** Tema visual do app. */
+enum class TemaApp { CLARO, ESCURO, SISTEMA }
 
-class PreferenciasApp(private val context: Context) {
+/** Opções de antecedência do alerta, em minutos antes do horário agendado da aula. */
+val OPCOES_ANTECEDENCIA_MINUTOS = listOf(0, 5, 10, 15, 30, 45, 60)
 
-    companion object {
-        val KEY_NOTIFICACOES_ATIVADAS = booleanPreferencesKey("notificacoes_ativadas")
-        val KEY_MODO_ESCURO = booleanPreferencesKey("modo_escuro")
+/**
+ * Preferências globais do app (tema, notificações, som, antecedência do alerta), salvas em
+ * SharedPreferences e expostas como StateFlow para a UI reagir automaticamente. Substitui as
+ * antigas configurações por aula — agora tudo é definido uma vez, na aba Configurações, para
+ * não poluir a tela de cada aula.
+ */
+class PreferenciasApp(context: Context) {
+
+    private val prefs = context.applicationContext.getSharedPreferences(NOME_ARQUIVO, Context.MODE_PRIVATE)
+
+    private val _tema = MutableStateFlow(
+        runCatching { TemaApp.valueOf(prefs.getString(CHAVE_TEMA, null) ?: TemaApp.SISTEMA.name) }
+            .getOrDefault(TemaApp.SISTEMA)
+    )
+    val tema: StateFlow<TemaApp> = _tema.asStateFlow()
+
+    // Desligada por padrão: a paleta de cores das matérias e a identidade visual roxa do app
+    // foram pensadas para funcionar juntas — a cor dinâmica do Android (derivada do papel de
+    // parede) pode destoar delas. O usuário pode ligar de volta em Configurações se preferir.
+    private val _usarCorDinamica = MutableStateFlow(prefs.getBoolean(CHAVE_COR_DINAMICA, false))
+    val usarCorDinamica: StateFlow<Boolean> = _usarCorDinamica.asStateFlow()
+
+    fun definirUsarCorDinamica(ativo: Boolean) {
+        _usarCorDinamica.value = ativo
+        prefs.edit().putBoolean(CHAVE_COR_DINAMICA, ativo).apply()
     }
 
-    val notificacoesAtivadas: Flow<Boolean> = context.dataStore.data
-        .catch { exception ->
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
-        }
-        .map { preferences ->
-            preferences[KEY_NOTIFICACOES_ATIVADAS] ?: true
-        }
+    private val _somAtivado = MutableStateFlow(prefs.getBoolean(CHAVE_SOM, true))
+    val somAtivado: StateFlow<Boolean> = _somAtivado.asStateFlow()
 
-    val modoEscuro: Flow<Boolean> = context.dataStore.data
-        .catch { exception ->
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
-        }
-        .map { preferences ->
-            preferences[KEY_MODO_ESCURO] ?: false
-        }
+    private val _minutosAntecedencia = MutableStateFlow(prefs.getInt(CHAVE_ANTECEDENCIA, 0))
+    val minutosAntecedencia: StateFlow<Int> = _minutosAntecedencia.asStateFlow()
 
-    suspend fun setNotificacoesAtivadas(ativadas: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[KEY_NOTIFICACOES_ATIVADAS] = ativadas
-        }
+    fun definirTema(novo: TemaApp) {
+        _tema.value = novo
+        prefs.edit().putString(CHAVE_TEMA, novo.name).apply()
     }
 
-    suspend fun setModoEscuro(ativo: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[KEY_MODO_ESCURO] = ativo
-        }
+    fun definirNotificacoesAtivadas(ativo: Boolean) {
+        _notificacoesAtivadas.value = ativo
+        prefs.edit().putBoolean(CHAVE_NOTIFICACOES, ativo).apply()
+    }
+
+    fun definirSomAtivado(ativo: Boolean) {
+        _somAtivado.value = ativo
+        prefs.edit().putBoolean(CHAVE_SOM, ativo).apply()
+    }
+
+    fun definirMinutosAntecedencia(minutos: Int) {
+        _minutosAntecedencia.value = minutos
+        prefs.edit().putInt(CHAVE_ANTECEDENCIA, minutos).apply()
+    }
+
+    private companion object {
+        const val NOME_ARQUIVO = "preferencias_app"
+        const val CHAVE_TEMA = "tema"
+        const val CHAVE_COR_DINAMICA = "usar_cor_dinamica"
+        const val CHAVE_NOTIFICACOES = "notificacoes_ativadas"
+        const val CHAVE_SOM = "som_ativado"
+        const val CHAVE_ANTECEDENCIA = "minutos_antecedencia"
     }
 }
