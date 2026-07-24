@@ -3,7 +3,7 @@ package com.pedrogavazzi.controleestudos.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.pedrogavazzi.controleestudos.data.StudyRepository
+import com.pedrogavazzi.controleestudos.ControleEstudosApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = StudyRepository(context.applicationContext)
+                val repository = (context.applicationContext as ControleEstudosApp).repository
                 repository.reagendarTodosOsAlarmes()
             } finally {
                 pendingResult.finish()

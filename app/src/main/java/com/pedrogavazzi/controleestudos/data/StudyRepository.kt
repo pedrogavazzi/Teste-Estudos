@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Ponto único de acesso aos dados do app (matérias e aulas) e responsável por manter
  * os alarmes de notificação sincronizados sempre que uma aula é criada, reagendada,
- * concluída ou tem o alerta desativado.
+ * concluída, ou quando as preferências globais de notificação mudam.
  */
-class StudyRepository(context: Context) {
+class StudyRepository(context: Context, private val preferencias: PreferenciasApp) {
 
     private val db = AppDatabase.getInstance(context)
     private val materiaDao = db.materiaDao()
@@ -182,19 +182,6 @@ class StudyRepository(context: Context) {
         }
     }
 
-    suspend fun definirAlerta(aula: Aula, ativado: Boolean) {
-        val atualizada = aula.copy(alertaAtivado = ativado)
-        aulaDao.atualizar(atualizada)
-        sincronizarAlarme(atualizada)
-    }
-
-    /** Define a forma de notificação (som, vibração ou ambos) e reprograma o alerta se necessário. */
-    suspend fun definirTipoAlerta(aula: Aula, tipoAlerta: TipoAlerta) {
-        val atualizada = aula.copy(tipoAlerta = tipoAlerta)
-        aulaDao.atualizar(atualizada)
-        sincronizarAlarme(atualizada)
-    }
-
     suspend fun salvarObservacao(aula: Aula, observacao: String) {
         aulaDao.atualizar(aula.copy(observacao = observacao))
     }
@@ -212,25 +199,57 @@ class StudyRepository(context: Context) {
         }
     }
 
+    /**
+     * Agenda ou cancela o alarme de uma aula com base nas preferências GLOBAIS de notificação
+     * (não mais por aula) — se notificações estiverem desligadas nas Configurações, nenhuma
+     * aula dispara alerta, mesmo com data futura.
+     */
     private suspend fun sincronizarAlarme(aula: Aula) {
-        if (aula.alertaAtivado && !aula.concluida && aula.dataHoraMillis != null &&
-            aula.dataHoraMillis > System.currentTimeMillis()
+        val horario = aula.dataHoraMillis
+        val horarioComAntecedencia = horario?.let {
+            it - preferencias.minutosAntecedencia.value * 60_000L
+        }
+        if (preferencias.notificacoesAtivadas.value && !aula.concluida && horarioComAntecedencia != null &&
+            horarioComAntecedencia > System.currentTimeMillis()
         ) {
             val materia = materiaDao.buscarPorId(aula.materiaId)
-            alarmScheduler.agendar(aula, materia?.nome ?: "Matéria")
+            alarmScheduler.agendar(
+                aula = aula,
+                nomeMateria = materia?.nome ?: "Matéria",
+                horarioDispararMillis = horarioComAntecedencia,
+                somAtivado = preferencias.somAtivado.value,
+                vibracaoAtivada = preferencias.vibracaoAtivada.value
+            )
         } else {
             alarmScheduler.cancelar(aula)
         }
     }
 
-    /** Reagenda todos os alarmes pendentes; usado após reiniciar o aparelho. */
+    /** Reagenda todos os alarmes pendentes conforme as preferências atuais; usado após
+     *  reiniciar o aparelho ou quando o usuário muda uma configuração de notificação. */
     suspend fun reagendarTodosOsAlarmes() {
         val materiasPorId = materiaDao.buscarTodasSuspend().associateBy { it.id }
+        if (!preferencias.notificacoesAtivadas.value) {
+            aulaDao.buscarTodasSuspend().forEach { alarmScheduler.cancelar(it) }
+            return
+        }
+        val antecedenciaMillis = preferencias.minutosAntecedencia.value * 60_000L
         aulaDao.buscarTodasSuspend()
-            .filter { it.alertaAtivado && !it.concluida && it.dataHoraMillis != null && it.dataHoraMillis > System.currentTimeMillis() }
+            .filter { it.dataHoraMillis != null && !it.concluida }
             .forEach { aula ->
-                val nomeMateria = materiasPorId[aula.materiaId]?.nome ?: "Matéria"
-                alarmScheduler.agendar(aula, nomeMateria)
+                val horarioComAntecedencia = aula.dataHoraMillis!! - antecedenciaMillis
+                if (horarioComAntecedencia > System.currentTimeMillis()) {
+                    val nomeMateria = materiasPorId[aula.materiaId]?.nome ?: "Matéria"
+                    alarmScheduler.agendar(
+                        aula = aula,
+                        nomeMateria = nomeMateria,
+                        horarioDispararMillis = horarioComAntecedencia,
+                        somAtivado = preferencias.somAtivado.value,
+                        vibracaoAtivada = preferencias.vibracaoAtivada.value
+                    )
+                } else {
+                    alarmScheduler.cancelar(aula)
+                }
             }
     }
 }

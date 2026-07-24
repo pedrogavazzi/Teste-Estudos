@@ -57,13 +57,20 @@ private fun ehHoje(millis: Long): Boolean {
         hoje.get(Calendar.DAY_OF_YEAR) == data.get(Calendar.DAY_OF_YEAR)
 }
 
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun AgendaScreen(viewModel: AgendaViewModel) {
     val context = LocalContext.current
     val aulas by viewModel.aulasAgendadas.collectAsState()
     val agrupadasPorData = aulas.groupBy { formatarDiaSemanaData(it.aula.dataHoraMillis!!) }
 
-    Scaffold { padding ->
+    Scaffold(
+        topBar = {
+            androidx.compose.material3.CenterAlignedTopAppBar(
+                title = { Text("Agenda", style = MaterialTheme.typography.titleLarge) }
+            )
+        }
+    ) { padding ->
         if (aulas.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.Materia
 
+@androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun MateriasScreen(
     viewModel: MateriasViewModel,
@@ -51,6 +52,11 @@ fun MateriasScreen(
     var materiaParaExcluir by remember { mutableStateOf<Materia?>(null) }
 
     Scaffold(
+        topBar = {
+            androidx.compose.material3.CenterAlignedTopAppBar(
+                title = { Text("Matérias", style = MaterialTheme.typography.titleLarge) }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 materiaEmEdicao = null

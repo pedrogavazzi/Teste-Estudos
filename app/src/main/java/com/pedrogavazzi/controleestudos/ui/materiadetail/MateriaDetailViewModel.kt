@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.pedrogavazzi.controleestudos.data.Aula
 import com.pedrogavazzi.controleestudos.data.Materia
 import com.pedrogavazzi.controleestudos.data.StudyRepository
-import com.pedrogavazzi.controleestudos.data.TipoAlerta
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -58,14 +57,6 @@ class MateriaDetailViewModel(
 
     fun marcarConclusao(aula: Aula, concluida: Boolean) {
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
-    }
-
-    fun definirAlerta(aula: Aula, ativado: Boolean) {
-        viewModelScope.launch { repository.definirAlerta(aula, ativado) }
-    }
-
-    fun definirTipoAlerta(aula: Aula, tipoAlerta: TipoAlerta) {
-        viewModelScope.launch { repository.definirTipoAlerta(aula, tipoAlerta) }
     }
 
     fun salvarObservacao(aula: Aula, observacao: String) {

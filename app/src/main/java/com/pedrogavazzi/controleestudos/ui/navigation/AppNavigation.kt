@@ -24,6 +24,8 @@ import com.pedrogavazzi.controleestudos.ui.caderno.CadernoEditorScreen
 import com.pedrogavazzi.controleestudos.ui.caderno.CadernoEditorViewModel
 import com.pedrogavazzi.controleestudos.ui.caderno.CadernoScreen
 import com.pedrogavazzi.controleestudos.ui.caderno.CadernoViewModel
+import com.pedrogavazzi.controleestudos.ui.configuracoes.ConfiguracoesScreen
+import com.pedrogavazzi.controleestudos.ui.configuracoes.ConfiguracoesViewModel
 import com.pedrogavazzi.controleestudos.ui.desempenho.DesempenhoScreen
 import com.pedrogavazzi.controleestudos.ui.desempenho.DesempenhoViewModel
 import com.pedrogavazzi.controleestudos.ui.materiadetail.MateriaDetailScreen
@@ -67,6 +69,10 @@ fun AppNavigation() {
             composable(Destino.Desempenho.rota) {
                 val viewModel: DesempenhoViewModel = viewModel()
                 DesempenhoScreen(viewModel = viewModel)
+            }
+            composable(Destino.Configuracoes.rota) {
+                val viewModel: ConfiguracoesViewModel = viewModel()
+                ConfiguracoesScreen(viewModel = viewModel)
             }
             composable(
                 route = Destino.MateriaDetail.rota,
@@ -112,7 +118,10 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val rotaAtual = backStackEntry?.destination
 
-    val destinosVisiveisComBarra = setOf(Destino.Materias.rota, Destino.Agenda.rota, Destino.Caderno.rota, Destino.Desempenho.rota)
+    val destinosVisiveisComBarra = setOf(
+        Destino.Materias.rota, Destino.Agenda.rota, Destino.Caderno.rota,
+        Destino.Desempenho.rota, Destino.Configuracoes.rota
+    )
     val mostrarBarra = rotaAtual?.hierarchy?.any { it.route in destinosVisiveisComBarra } == true
 
     if (mostrarBarra) {

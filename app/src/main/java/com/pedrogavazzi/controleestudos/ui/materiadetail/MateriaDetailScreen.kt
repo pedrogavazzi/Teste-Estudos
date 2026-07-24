@@ -67,6 +67,7 @@ fun MateriaDetailScreen(
 
     // Só uma aula fica expandida por vez: abrir outra fecha a anterior automaticamente.
     var aulaExpandidaId by remember { mutableStateOf<Long?>(null) }
+    var renomeandoAlgumaAula by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val quantidadeItensAntesDasAulas = 1 + if (aulasSemData > 0) 1 else 0
 
@@ -95,11 +96,13 @@ fun MateriaDetailScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { viewModel.adicionarAula() },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Adicionar aula") }
-            )
+            if (aulaExpandidaId == null && !renomeandoAlgumaAula) {
+                ExtendedFloatingActionButton(
+                    onClick = { viewModel.adicionarAula() },
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("Adicionar aula") }
+                )
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -158,12 +161,11 @@ fun MateriaDetailScreen(
                     onAgendar = { novaData -> viewModel.agendarAula(aula, novaData) },
                     onReagendar = { novaData -> viewModel.reagendarAula(aula, novaData) },
                     onMarcarConclusao = { concluida -> viewModel.marcarConclusao(aula, concluida) },
-                    onDefinirAlerta = { ativado -> viewModel.definirAlerta(aula, ativado) },
-                    onDefinirTipoAlerta = { tipo -> viewModel.definirTipoAlerta(aula, tipo) },
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
                     onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },
                     onRenomear = { novoNome -> viewModel.renomearAula(aula, novoNome) },
-                    onExcluir = { viewModel.excluirAula(aula) }
+                    onExcluir = { viewModel.excluirAula(aula) },
+                    onEditandoAlterado = { editando -> renomeandoAlgumaAula = editando }
                 )
             }
             item { androidx.compose.foundation.layout.Spacer(Modifier.padding(32.dp)) }

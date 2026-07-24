@@ -9,24 +9,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,7 +34,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.Aula
 import com.pedrogavazzi.controleestudos.data.StatusAula
-import com.pedrogavazzi.controleestudos.data.TipoAlerta
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor
@@ -61,17 +52,20 @@ fun AulaItem(
     onAgendar: (Long) -> Unit,
     onReagendar: (Long) -> Unit,
     onMarcarConclusao: (Boolean) -> Unit,
-    onDefinirAlerta: (Boolean) -> Unit,
-    onDefinirTipoAlerta: (TipoAlerta) -> Unit,
     onSalvarObservacao: (String) -> Unit,
     onAbrirCaderno: () -> Unit,
     onRenomear: (String?) -> Unit,
-    onExcluir: () -> Unit
+    onExcluir: () -> Unit,
+    onEditandoAlterado: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     var mostrarDialogoRenomear by remember { mutableStateOf(false) }
     var mostrarConfirmacaoExclusao by remember { mutableStateOf(false) }
     val status = aula.statusAtual()
+
+    androidx.compose.runtime.LaunchedEffect(mostrarDialogoRenomear) {
+        onEditandoAlterado(mostrarDialogoRenomear)
+    }
 
     // O card inteiro abre/fecha ao tocar em qualquer lugar — os botões "Renomear", "Excluir"
     // e o ícone de conclusão são seus próprios elementos clicáveis e consomem o toque antes
@@ -116,7 +110,16 @@ fun AulaItem(
                 }
             }
 
-            Text(formatarDataHora(aula.dataHoraMillis), style = MaterialTheme.typography.bodyLarge)
+            if (aula.dataHoraMillis != null) {
+                Text(formatarDataHora(aula.dataHoraMillis), style = MaterialTheme.typography.bodyLarge)
+            } else if (aula.observacao.isNotBlank()) {
+                Text(
+                    aula.observacao,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             if (status == StatusAula.ATRASADA) {
                 Text(
@@ -159,57 +162,6 @@ fun AulaItem(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (aula.alertaAtivado) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsOff,
-                            contentDescription = null
-                        )
-                        Text("Alerta de notificação", modifier = Modifier.weight(1f).padding(start = 8.dp))
-                        Switch(checked = aula.alertaAtivado, onCheckedChange = onDefinirAlerta)
-                    }
-
-                    if (aula.alertaAtivado) {
-                        Text(
-                            "Forma da notificação",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val comSomSelecionado = aula.tipoAlerta == TipoAlerta.COM_SOM
-                            if (comSomSelecionado) {
-                                Button(onClick = {}, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Text("Com som")
-                                }
-                            } else {
-                                OutlinedButton(onClick = { onDefinirTipoAlerta(TipoAlerta.COM_SOM) }, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Text("Com som")
-                                }
-                            }
-                            val semSomSelecionado = aula.tipoAlerta == TipoAlerta.SEM_SOM
-                            if (semSomSelecionado) {
-                                Button(onClick = {}, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Icon(Icons.Filled.VolumeOff, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Text("Sem som")
-                                }
-                            } else {
-                                OutlinedButton(onClick = { onDefinirTipoAlerta(TipoAlerta.SEM_SOM) }, modifier = Modifier.weight(1f)) {
-                                    Icon(Icons.Filled.VolumeOff, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                                    Text("Sem som")
-                                }
-                            }
                         }
                     }
 

@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Destino(val rota: String) {
@@ -12,6 +13,7 @@ sealed class Destino(val rota: String) {
     data object Agenda : Destino("agenda")
     data object Caderno : Destino("caderno")
     data object Desempenho : Destino("desempenho")
+    data object Configuracoes : Destino("configuracoes")
     data object MateriaDetail : Destino("materia/{materiaId}") {
         fun rotaComId(materiaId: Long) = "materia/$materiaId"
     }
@@ -26,5 +28,6 @@ val itensNavegacaoInferior = listOf(
     ItemNavegacao(Destino.Materias, "Matérias", Icons.Filled.MenuBook),
     ItemNavegacao(Destino.Agenda, "Agenda", Icons.Filled.CalendarMonth),
     ItemNavegacao(Destino.Caderno, "Caderno", Icons.Filled.EditNote),
-    ItemNavegacao(Destino.Desempenho, "Desempenho", Icons.Filled.BarChart)
+    ItemNavegacao(Destino.Desempenho, "Desempenho", Icons.Filled.BarChart),
+    ItemNavegacao(Destino.Configuracoes, "Ajustes", Icons.Filled.Settings)
 )

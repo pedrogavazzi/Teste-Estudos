@@ -36,7 +36,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,14 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalTextToolbar
-import androidx.compose.ui.platform.TextToolbar
-import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -71,26 +66,6 @@ import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
 
 private val CorRealce = Color(0xFFFFEB3B).copy(alpha = 0.45f)
-
-/**
- * Barra de seleção de texto do próprio Android (cortar/copiar/colar) desativada de propósito:
- * ela ficava sobrepondo a barra de formatação do app e atrapalhava desmarcar o realce. A
- * seleção (destaque azul, alças de arrastar) continua funcionando normalmente — só a barra
- * flutuante de atalhos do sistema não aparece mais; a formatação é feita pela barra do app.
- */
-private object BarraDeSelecaoDesativada : TextToolbar {
-    override val status: TextToolbarStatus = TextToolbarStatus.Hidden
-    override fun hide() {}
-    override fun showMenu(
-        rect: Rect,
-        onCopyRequested: (() -> Unit)?,
-        onPasteRequested: (() -> Unit)?,
-        onCutRequested: (() -> Unit)?,
-        onSelectAllRequested: (() -> Unit)?
-    ) {
-        // Intencionalmente vazio.
-    }
-}
 
 /**
  * Tela dedicada do caderno de uma aula: um único texto contínuo (como um documento), com
@@ -206,7 +181,12 @@ fun CadernoEditorScreen(
                         }
                     }
                 )
-                if (!modoLeitura) {
+                Divider()
+            }
+        },
+        bottomBar = {
+            if (!modoLeitura) {
+                Column {
                     BarraDeFormatacao(
                         temSelecao = !campo.selection.collapsed,
                         onNegritoClick = { aplicarEstilo(TipoEstilo.NEGRITO) },
@@ -214,19 +194,14 @@ fun CadernoEditorScreen(
                         onRealceClick = { aplicarEstilo(TipoEstilo.REALCE) },
                         onTamanhoSelecionado = { tamanho -> aplicarTamanhoSelecao(tamanho) }
                     )
-                }
-                Divider()
-            }
-        },
-        bottomBar = {
-            if (!modoLeitura) {
-                Surface(shadowElevation = 8.dp) {
-                    Button(
-                        onClick = { salvarAgora(); onVoltar() },
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
-                    ) {
-                        Icon(Icons.Filled.Save, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                        Text("Salvar e sair")
+                    Surface(shadowElevation = 8.dp) {
+                        Button(
+                            onClick = { salvarAgora(); onVoltar() },
+                            modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        ) {
+                            Icon(Icons.Filled.Save, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                            Text("Salvar e sair")
+                        }
                     }
                 }
             }
@@ -238,26 +213,24 @@ fun CadernoEditorScreen(
             }
         } else {
             val focusManager = LocalFocusManager.current
-            CompositionLocalProvider(LocalTextToolbar provides BarraDeSelecaoDesativada) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            ) {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
-                        .padding(16.dp)
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState())
+                        // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor.
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { focusManager.clearFocus() })
+                        }
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(20.dp)
-                            .verticalScroll(rememberScrollState())
-                            // Tocar em qualquer área vazia (fora do texto) fecha a seleção/cursor,
-                            // já que o toque dentro do próprio campo é consumido por ele primeiro.
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { focusManager.clearFocus() })
-                            }
-                    ) {
                     BasicTextField(
                         value = campo,
                         onValueChange = { novoValor -> if (!modoLeitura) campo = novoValor },
@@ -280,7 +253,6 @@ fun CadernoEditorScreen(
                             campoInterno()
                         }
                     )
-                }
                 }
             }
         }
