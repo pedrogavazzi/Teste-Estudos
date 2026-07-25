@@ -41,6 +41,9 @@ class PreferenciasApp(context: Context) {
     private val _somAtivado = MutableStateFlow(prefs.getBoolean(CHAVE_SOM, true))
     val somAtivado: StateFlow<Boolean> = _somAtivado.asStateFlow()
 
+    private val _notificacoesAtivadas = MutableStateFlow(prefs.getBoolean(CHAVE_NOTIFICACOES, true))
+    val notificacoesAtivadas: StateFlow<Boolean> = _notificacoesAtivadas.asStateFlow()
+
     private val _minutosAntecedencia = MutableStateFlow(prefs.getInt(CHAVE_ANTECEDENCIA, 0))
     val minutosAntecedencia: StateFlow<Int> = _minutosAntecedencia.asStateFlow()
 
