@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -134,44 +135,50 @@ fun AulaItem(
             AnimatedVisibility(visible = expandido) {
                 Column(Modifier.padding(top = 12.dp)) {
 
-                    // Um único botão de agendamento: "Reagendar" se estiver atrasada (reinicia a
-                    // contagem de atraso e soma ao contador), senão "Agendar"/"Alterar data e horário".
-                    if (status == StatusAula.ATRASADA) {
-                        OutlinedButton(
-                            onClick = {
-                                abrirSeletorDeDataEHora(context, aula.dataHoraMillis) { novaData ->
-                                    onReagendar(novaData)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Update, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                            Text("Reagendar", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Uma linha só para as ações de agendamento, em vez de dois botões
+                    // empilhados — "Remover" fica ao lado quando já existe uma data marcada.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (status == StatusAula.ATRASADA) {
+                            OutlinedButton(
+                                onClick = {
+                                    abrirSeletorDeDataEHora(context, aula.dataHoraMillis) { novaData ->
+                                        onReagendar(novaData)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Filled.Update, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                                Text("Reagendar", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    abrirSeletorDeDataEHora(context, aula.dataHoraMillis) { novaData ->
+                                        onAgendar(novaData)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Filled.Event, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                                Text(
+                                    if (aula.dataHoraMillis == null) "Agendar" else "Alterar data",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                abrirSeletorDeDataEHora(context, aula.dataHoraMillis) { novaData ->
-                                    onAgendar(novaData)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Event, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                            Text(
-                                if (aula.dataHoraMillis == null) "Agendar" else "Alterar data e horário",
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    if (aula.dataHoraMillis != null) {
-                        TextButton(
-                            onClick = onRemoverAgendamento,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Remover agendamento (voltar para não agendada)")
+                        if (aula.dataHoraMillis != null) {
+                            OutlinedButton(onClick = onRemoverAgendamento) {
+                                Icon(
+                                    Icons.Filled.EventBusy,
+                                    // Esse botão não tem texto do lado (só o ícone), então
+                                    // precisa da própria descrição pra quem usa leitor de tela.
+                                    contentDescription = "Remover agendamento, voltar para não agendada"
+                                )
+                            }
                         }
                     }
 

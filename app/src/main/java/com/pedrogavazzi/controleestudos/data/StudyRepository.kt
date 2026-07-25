@@ -134,6 +134,8 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
      * estiver ativo, o intervalo conta só dias de segunda a sexta — sábado e domingo são
      * pulados na própria contagem (não é "soma dias corridos e empurra depois", que contaria
      * o fim de semana como se fosse dia útil e podia até fazer duas aulas caírem juntas).
+     * Devolve os ids das aulas agendadas, para permitir desfazer a ação (ver
+     * [desfazerAgendamentoEmLote]).
      */
     suspend fun agendarEmLote(
         materiaId: Long,
@@ -141,7 +143,7 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         intervaloDias: Int,
         quantidade: Int,
         apenasDiasUteis: Boolean
-    ) {
+    ): List<Long> {
         val aulasParaAgendar = aulaDao.buscarTodasDaMateriaSuspend(materiaId)
             .filter { it.dataHoraMillis == null }
             .sortedBy { it.numero }
@@ -155,6 +157,20 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
             val atualizada = aula.copy(dataHoraMillis = data)
             aulaDao.atualizar(atualizada)
             sincronizarAlarme(atualizada)
+        }
+        return aulasParaAgendar.map { it.id }
+    }
+
+    /** Desfaz um agendamento em lote: volta as aulas indicadas para "sem data" (elas só podem
+     *  ter vindo de [agendarEmLote], que só agenda aulas que ainda não tinham data nenhuma —
+     *  então "desfazer" é sempre seguro, não existe data anterior pra perder). */
+    suspend fun desfazerAgendamentoEmLote(aulaIds: List<Long>) {
+        aulaIds.forEach { id ->
+            aulaDao.buscarPorIdSuspend(id)?.let { aula ->
+                val semData = aula.copy(dataHoraMillis = null)
+                aulaDao.atualizar(semData)
+                alarmScheduler.cancelar(semData)
+            }
         }
     }
 
@@ -186,6 +202,17 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         materiaDao.buscarPorId(aula.materiaId)?.let { materia ->
             materiaDao.atualizar(materia.copy(totalAulas = aulaDao.contarAulasDaMateria(aula.materiaId)))
         }
+    }
+
+    /** Desfaz a exclusão de uma aula (usado pelo "Desfazer" da confirmação de exclusão):
+     *  reinsere a aula exatamente como estava — mesmo id, observação, caderno e tudo mais —
+     *  e reprograma o alarme dela se for o caso. */
+    suspend fun restaurarAula(aula: Aula) {
+        aulaDao.inserir(aula)
+        materiaDao.buscarPorId(aula.materiaId)?.let { materia ->
+            materiaDao.atualizar(materia.copy(totalAulas = aulaDao.contarAulasDaMateria(aula.materiaId)))
+        }
+        sincronizarAlarme(aula)
     }
 
     /**

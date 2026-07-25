@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -55,14 +56,21 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
 
-private val CorRealce = Color(0xFFFFEB3B).copy(alpha = 0.45f)
+// Realce mais opaco no tema claro (fundo claro, texto escuro) e mais sutil no escuro — um
+// mesmo amarelo "cheio" sobre fundo escuro esmaeceria o texto claro por cima, reduzindo o
+// contraste em vez de só destacar o trecho.
+private val CorRealceClaro = Color(0xFFFFEB3B).copy(alpha = 0.45f)
+private val CorRealceEscuro = Color(0xFFFFEB3B).copy(alpha = 0.28f)
+
+/** Estado do indicador de salvamento do caderno — pra deixar claro que o texto está sendo
+ *  guardado, já que antes não havia nenhum sinal disso (o usuário só tinha que confiar). */
+private enum class EstadoSalvamento { OCIOSO, PENDENTE, SALVO }
 
 /**
  * Tela dedicada do caderno de uma aula: um único texto contínuo (como um documento), com
@@ -90,6 +98,7 @@ fun CadernoEditorScreen(
     // -e-depois-digitar — o próximo texto digitado já sai formatado.
     var estilosPendentes by remember { mutableStateOf(setOf<TipoEstilo>()) }
     var tamanhoPendente by remember { mutableStateOf<TipoEstilo?>(null) }
+    var estadoSalvamento by remember { mutableStateOf(EstadoSalvamento.OCIOSO) }
 
     LaunchedEffect(aula?.id, estado.carregando) {
         if (!inicializado && !estado.carregando && aula != null) {
@@ -104,17 +113,23 @@ fun CadernoEditorScreen(
 
     fun salvarAgora() {
         aula?.let { viewModel.salvarAnotacoes(it, CadernoSerializer.serializar(NotaCaderno(campo.text, estilos))) }
+        estadoSalvamento = EstadoSalvamento.SALVO
     }
 
     // Salva automaticamente pouco depois de parar de digitar (evita gravar a cada tecla).
+    // "Pendente" aparece assim que algo muda, e vira "Salvo" quando o salvamento é disparado —
+    // antes não havia nenhuma indicação disso, o que deixava o usuário sem saber se o que
+    // escreveu tinha sido guardado ou não.
     LaunchedEffect(campo.text, estilos) {
         if (inicializado && aula != null && !modoLeitura) {
+            estadoSalvamento = EstadoSalvamento.PENDENTE
             delay(700)
             salvarAgora()
         }
     }
 
     val alterado = campo.text != textoOriginal || estilos != estilosOriginais
+    val aparenciaCaderno = aparenciaCadernoDoTema()
 
     fun aplicarEstilo(tipo: TipoEstilo) {
         val selecao = campo.selection
@@ -146,12 +161,28 @@ fun CadernoEditorScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 2
                             )
-                            if (aula?.dataHoraMillis != null) {
-                                Text(
-                                    formatarDataHora(aula.dataHoraMillis),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (aula?.dataHoraMillis != null) {
+                                    Text(
+                                        formatarDataHora(aula.dataHoraMillis),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (!modoLeitura && estadoSalvamento != EstadoSalvamento.OCIOSO) {
+                                    if (aula?.dataHoraMillis != null) {
+                                        Text(" • ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text(
+                                        if (estadoSalvamento == EstadoSalvamento.PENDENTE) "Salvando…" else "Salvo",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (estadoSalvamento == EstadoSalvamento.PENDENTE) {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        } else {
+                                            MaterialTheme.colorScheme.primary
+                                        }
+                                    )
+                                }
                             }
                         }
                     },
@@ -262,18 +293,23 @@ fun CadernoEditorScreen(
                         },
                         readOnly = modoLeitura,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 16.sp,
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        visualTransformation = { texto -> TransformedText(construirAnnotatedString(texto.text, estilos), OffsetMapping.Identity) },
+                        visualTransformation = { texto ->
+                            TransformedText(
+                                construirAnnotatedString(texto.text, estilos, aparenciaCaderno),
+                                OffsetMapping.Identity
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         decorationBox = { campoInterno ->
                             if (campo.text.isEmpty()) {
                                 Text(
                                     if (modoLeitura) "Nenhuma anotação ainda." else "Escreva suas anotações aqui…",
                                     color = MaterialTheme.colorScheme.outline,
-                                    fontSize = 16.sp
+                                    fontSize = MaterialTheme.typography.bodyLarge.fontSize
                                 )
                             }
                             campoInterno()
@@ -285,7 +321,33 @@ fun CadernoEditorScreen(
     }
 }
 
-private fun construirAnnotatedString(texto: String, estilos: List<EstiloAplicado>): AnnotatedString {
+/** Tamanhos de fonte do caderno, derivados da escala tipográfica do tema (em vez de valores
+ *  soltos) — assim ficam consistentes com o resto do app e continuam claramente diferentes
+ *  entre si (a diferença entre eles foi alargada numa rodada anterior, que os deixou parecidos
+ *  demais). */
+private data class AparenciaCaderno(
+    val tamanhoPequeno: androidx.compose.ui.unit.TextUnit,
+    val tamanhoGrande: androidx.compose.ui.unit.TextUnit,
+    val tamanhoTitulo: androidx.compose.ui.unit.TextUnit,
+    val corRealce: Color
+)
+
+@Composable
+private fun aparenciaCadernoDoTema(): AparenciaCaderno {
+    val fundoEscuro = MaterialTheme.colorScheme.surfaceContainerLowest.luminance() < 0.5f
+    return AparenciaCaderno(
+        tamanhoPequeno = MaterialTheme.typography.bodySmall.fontSize,
+        tamanhoGrande = MaterialTheme.typography.titleLarge.fontSize,
+        tamanhoTitulo = MaterialTheme.typography.headlineMedium.fontSize,
+        corRealce = if (fundoEscuro) CorRealceEscuro else CorRealceClaro
+    )
+}
+
+private fun construirAnnotatedString(
+    texto: String,
+    estilos: List<EstiloAplicado>,
+    aparencia: AparenciaCaderno
+): AnnotatedString {
     return buildAnnotatedString {
         append(texto)
         estilos.forEach { estilo ->
@@ -295,10 +357,10 @@ private fun construirAnnotatedString(texto: String, estilos: List<EstiloAplicado
             val spanStyle = when (estilo.tipo) {
                 TipoEstilo.NEGRITO -> SpanStyle(fontWeight = FontWeight.Bold)
                 TipoEstilo.ITALICO -> SpanStyle(fontStyle = FontStyle.Italic)
-                TipoEstilo.REALCE -> SpanStyle(background = CorRealce)
-                TipoEstilo.TITULO -> SpanStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                TipoEstilo.GRANDE -> SpanStyle(fontSize = 22.sp)
-                TipoEstilo.PEQUENO -> SpanStyle(fontSize = 12.sp)
+                TipoEstilo.REALCE -> SpanStyle(background = aparencia.corRealce)
+                TipoEstilo.TITULO -> SpanStyle(fontSize = aparencia.tamanhoTitulo, fontWeight = FontWeight.Bold)
+                TipoEstilo.GRANDE -> SpanStyle(fontSize = aparencia.tamanhoGrande)
+                TipoEstilo.PEQUENO -> SpanStyle(fontSize = aparencia.tamanhoPequeno)
             }
             addStyle(spanStyle, inicio, fim)
         }

@@ -1,7 +1,7 @@
 package com.pedrogavazzi.controleestudos.ui.agenda
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -22,13 +21,16 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,13 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.StatusAula
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.data.statusAtual
 import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.CampoDeBusca
+import com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima
+import com.pedrogavazzi.controleestudos.ui.components.IniciaisDaMateria
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
@@ -72,12 +75,37 @@ private fun inicioDoDia(millis: Long): Long = Calendar.getInstance().apply {
     set(Calendar.MILLISECOND, 0)
 }.timeInMillis
 
+/**
+ * Aba Agenda: além da lista de aulas com data (agrupadas por dia, com destaque para hoje),
+ * mostra também as aulas ainda sem data marcada — antes elas ficavam invisíveis aqui, só
+ * apareciam entrando na matéria específica — e um filtro rápido para ver só as atrasadas.
+ *
+ * @param disparoMostrarSoAtrasadas quando true (ex.: veio de um toque no card de Desempenho),
+ *   liga o filtro "só atrasadas" assim que a tela abre; [onFiltroAtrasadasConsumido] avisa que
+ *   já foi tratado, pra não repetir a cada recomposição.
+ */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun AgendaScreen(viewModel: AgendaViewModel) {
+fun AgendaScreen(
+    viewModel: AgendaViewModel,
+    onAbrirCaderno: (Long) -> Unit = {},
+    onAbrirMateria: (Long) -> Unit = {},
+    disparoMostrarSoAtrasadas: Boolean = false,
+    onFiltroAtrasadasConsumido: () -> Unit = {}
+) {
     val context = LocalContext.current
     val aulas by viewModel.aulasAgendadas.collectAsState()
+    val aulasSemData by viewModel.aulasSemData.collectAsState()
+    val soAtrasadas by viewModel.mostrarSoAtrasadas.collectAsState()
     var termoBusca by remember { mutableStateOf("") }
+
+    LaunchedEffect(disparoMostrarSoAtrasadas) {
+        if (disparoMostrarSoAtrasadas) {
+            viewModel.ativarFiltroAtrasadas()
+            onFiltroAtrasadasConsumido()
+        }
+    }
+
     val aulasFiltradas = remember(aulas, termoBusca) {
         if (termoBusca.isBlank()) aulas
         else aulas.filter {
@@ -86,6 +114,13 @@ fun AgendaScreen(viewModel: AgendaViewModel) {
         }
     }
     val agrupadasPorData = aulasFiltradas.groupBy { inicioDoDia(it.aula.dataHoraMillis!!) }
+    val semDataFiltradas = remember(aulasSemData, termoBusca) {
+        if (termoBusca.isBlank()) aulasSemData
+        else aulasSemData.filter {
+            it.nomeMateria.contains(termoBusca, ignoreCase = true) ||
+                it.aula.nomeExibido().contains(termoBusca, ignoreCase = true)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,87 +129,117 @@ fun AgendaScreen(viewModel: AgendaViewModel) {
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            if (aulas.size > 3) {
-                CampoDeBusca(
-                    valor = termoBusca,
-                    onValorAlterado = { termoBusca = it },
-                    placeholder = "Buscar matéria ou aula",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            if (aulas.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Filled.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+        ConteudoComLarguraMaxima(Modifier.padding(padding)) {
+            Column(Modifier.fillMaxSize()) {
+                if (aulas.size > 3 || aulasSemData.isNotEmpty()) {
+                    CampoDeBusca(
+                        valor = termoBusca,
+                        onValorAlterado = { termoBusca = it },
+                        placeholder = "Buscar matéria ou aula",
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                if (aulas.isNotEmpty()) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                        FilterChip(
+                            selected = soAtrasadas,
+                            onClick = { viewModel.alternarFiltroAtrasadas() },
+                            label = { Text("Só atrasadas") }
                         )
-                        Spacer(Modifier.padding(4.dp))
+                    }
+                }
+                if (aulas.isEmpty() && aulasSemData.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Filled.CalendarMonth,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.padding(4.dp))
+                            Text(
+                                "Nenhuma aula agendada ainda.\nVá até uma matéria para marcar dia e horário das aulas.",
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                } else if (aulasFiltradas.isEmpty() && semDataFiltradas.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "Nenhuma aula agendada ainda.\nVá até uma matéria para marcar dia e horário das aulas.",
+                            if (termoBusca.isNotBlank()) "Nenhuma aula encontrada para \"$termoBusca\"."
+                            else "Nenhuma aula atrasada — tudo em dia.",
                             modifier = Modifier.padding(16.dp)
                         )
                     }
-                }
-            } else if (aulasFiltradas.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Nenhuma aula encontrada para \"$termoBusca\".", modifier = Modifier.padding(16.dp))
-                }
-            } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                agrupadasPorData.forEach { (inicioDia, itensDoDia) ->
-                    val diaEhHoje = ehHoje(inicioDia)
-                    val dataFormatada = formatarDiaSemanaData(inicioDia)
-                    item(key = "cabecalho_$inicioDia") {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-                            Text(
-                                dataFormatada,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (diaEhHoje) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (diaEhHoje) {
-                                Spacer(Modifier.padding(start = 8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.primary
-                                ) {
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        agrupadasPorData.forEach { (inicioDia, itensDoDia) ->
+                            val diaEhHoje = ehHoje(inicioDia)
+                            val dataFormatada = formatarDiaSemanaData(inicioDia)
+                            item(key = "cabecalho_$inicioDia") {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                                     Text(
-                                        "HOJE",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
+                                        dataFormatada,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (diaEhHoje) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                     )
-                                }
-                            }
-                        }
-                    }
-                    items(itensDoDia, key = { it.aula.id }) { item ->
-                        ItemAgenda(
-                            item = item,
-                            destaque = diaEhHoje,
-                            onMarcarConclusao = { concluida -> viewModel.marcarConclusao(item.aula, concluida) },
-                            onAlterarData = {
-                                abrirSeletorDeDataEHora(context, item.aula.dataHoraMillis) { novaData ->
-                                    if (item.aula.statusAtual() == StatusAula.ATRASADA) {
-                                        viewModel.reagendarAula(item.aula, novaData)
-                                    } else {
-                                        viewModel.agendarAula(item.aula, novaData)
+                                    if (diaEhHoje) {
+                                        Spacer(Modifier.padding(start = 8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(50),
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Text(
+                                                "HOJE",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        )
+                            items(itensDoDia, key = { it.aula.id }) { item ->
+                                ItemAgenda(
+                                    item = item,
+                                    destaque = diaEhHoje,
+                                    onAbrirCaderno = { onAbrirCaderno(item.aula.id) },
+                                    onMarcarConclusao = { concluida -> viewModel.marcarConclusao(item.aula, concluida) },
+                                    onAlterarData = {
+                                        abrirSeletorDeDataEHora(context, item.aula.dataHoraMillis) { novaData ->
+                                            if (item.aula.statusAtual() == StatusAula.ATRASADA) {
+                                                viewModel.reagendarAula(item.aula, novaData)
+                                            } else {
+                                                viewModel.agendarAula(item.aula, novaData)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        if (semDataFiltradas.isNotEmpty() && !soAtrasadas) {
+                            item(key = "cabecalho_sem_data") {
+                                Text(
+                                    "Sem data marcada (${semDataFiltradas.size})",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                                )
+                            }
+                            items(semDataFiltradas, key = { "semdata_${it.aula.id}" }) { item ->
+                                ItemSemData(item = item, onAbrirMateria = { onAbrirMateria(item.aula.materiaId) })
+                            }
+                        }
+                        item { Spacer(Modifier.padding(40.dp)) }
                     }
                 }
-                item { Spacer(Modifier.padding(40.dp)) }
-            }
             }
         }
     }
@@ -184,6 +249,7 @@ fun AgendaScreen(viewModel: AgendaViewModel) {
 private fun ItemAgenda(
     item: AulaComMateria,
     destaque: Boolean,
+    onAbrirCaderno: () -> Unit,
     onMarcarConclusao: (Boolean) -> Unit,
     onAlterarData: () -> Unit
 ) {
@@ -192,7 +258,7 @@ private fun ItemAgenda(
         .getOrDefault(MaterialTheme.colorScheme.primary)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onAbrirCaderno),
         shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
         border = if (destaque) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
         colors = if (destaque) {
@@ -205,7 +271,7 @@ private fun ItemAgenda(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.size(10.dp).background(cor, CircleShape))
+            IniciaisDaMateria(nomeMateria = item.nomeMateria, cor = cor)
             Spacer(Modifier.padding(start = 8.dp))
             Column(Modifier.weight(1f)) {
                 TextoNomeMateria(
@@ -227,6 +293,35 @@ private fun ItemAgenda(
                 )
             }
             CaixaConclusao(concluida = item.aula.concluida, onAlterar = onMarcarConclusao)
+        }
+    }
+}
+
+@Composable
+private fun ItemSemData(item: AulaComMateria, onAbrirMateria: () -> Unit) {
+    val cor = runCatching { Color(android.graphics.Color.parseColor(item.corHex)) }
+        .getOrDefault(MaterialTheme.colorScheme.primary)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IniciaisDaMateria(nomeMateria = item.nomeMateria, cor = cor)
+            Spacer(Modifier.padding(start = 8.dp))
+            Column(Modifier.weight(1f)) {
+                TextoNomeMateria(
+                    nome = item.nomeMateria,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(item.aula.nomeExibido(), style = MaterialTheme.typography.bodyLarge)
+            }
+            TextButton(onClick = onAbrirMateria) { Text("Agendar") }
         }
     }
 }

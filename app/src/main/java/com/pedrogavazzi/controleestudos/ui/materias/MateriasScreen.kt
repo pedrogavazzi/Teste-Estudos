@@ -1,6 +1,5 @@
 package com.pedrogavazzi.controleestudos.ui.materias
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -72,7 +70,8 @@ fun MateriasScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima(Modifier.padding(padding)) {
+        Column(Modifier.fillMaxSize()) {
             if (materias.size > 1) {
                 CampoDeBusca(
                     valor = termoBusca,
@@ -119,6 +118,7 @@ fun MateriasScreen(
                 }
             }
         }
+        }
     }
 
     if (dialogoAberto) {
@@ -138,10 +138,18 @@ fun MateriasScreen(
     }
 
     materiaParaExcluir?.let { materia ->
+        val progresso = materias.firstOrNull { it.materia.id == materia.id }
+        val textoAviso = buildString {
+            append("Isso vai apagar ${progresso?.totalAulas ?: 0} aula(s)")
+            if ((progresso?.cadernosComConteudo ?: 0) > 0) {
+                append(" e ${progresso?.cadernosComConteudo} caderno(s) com anotações")
+            }
+            append(". Essa ação não pode ser desfeita.")
+        }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { materiaParaExcluir = null },
-            title = { Text("Excluir matéria") },
-            text = { Text("Tem certeza que deseja excluir \"${materia.nome}\" e todas as suas aulas? Essa ação não pode ser desfeita.") },
+            title = { Text("Excluir \"${materia.nome}\"?") },
+            text = { Text(textoAviso) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     viewModel.excluirMateria(materia)
@@ -172,10 +180,10 @@ private fun MateriaCard(
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .background(cor, CircleShape)
+                com.pedrogavazzi.controleestudos.ui.components.IniciaisDaMateria(
+                    nomeMateria = item.materia.nome,
+                    cor = cor,
+                    tamanho = 28.dp
                 )
                 Spacer(Modifier.padding(start = 8.dp))
                 com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria(

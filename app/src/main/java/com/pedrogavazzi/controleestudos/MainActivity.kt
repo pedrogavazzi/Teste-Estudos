@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import com.pedrogavazzi.controleestudos.data.TemaApp
 import com.pedrogavazzi.controleestudos.notifications.NotificationHelper
 import com.pedrogavazzi.controleestudos.ui.navigation.AppNavigation
+import com.pedrogavazzi.controleestudos.ui.navigation.rotaInicialPara
 import com.pedrogavazzi.controleestudos.ui.theme.ControleDeEstudosTheme
 
 class MainActivity : ComponentActivity() {
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
             ControleDeEstudosTheme(useDarkTheme = temaEscuro, dynamicColor = corDinamica) {
                 SolicitarPermissoesNecessarias()
                 AppNavigation(
+                    rotaInicial = rotaInicialPara(preferencias.abaInicial.value),
                     aulaIdParaAbrirCaderno = aulaIdParaAbrirCaderno,
                     onAulaAbertaPeloDeepLink = { aulaIdParaAbrirCaderno = null }
                 )

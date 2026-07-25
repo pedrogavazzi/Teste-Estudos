@@ -8,6 +8,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -37,12 +40,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
+/**
+ * @param rotaInicial em qual aba o app abre — normalmente vem da preferência do usuário
+ *   (Configurações > Aba inicial), lida uma vez no início do app.
+ * @param aulaIdParaAbrirCaderno id de aula vindo de um toque em notificação (deep link);
+ *   [onAulaAbertaPeloDeepLink] avisa que já foi tratado.
+ */
 @Composable
 fun AppNavigation(
+    rotaInicial: String = Destino.Agenda.rota,
     aulaIdParaAbrirCaderno: Long? = null,
     onAulaAbertaPeloDeepLink: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+
+    // Sinal de "ao entrar na Agenda, já mostrar só as atrasadas" — usado quando o usuário toca
+    // no aviso de atrasadas do card de Desempenho, pra levar direto ao que ele quer ver.
+    var disparoMostrarAtrasadas by remember { mutableStateOf(false) }
 
     // Veio de um toque na notificação: abre direto o caderno daquela aula, por cima de
     // qualquer tela em que o app estivesse.
@@ -58,7 +72,7 @@ fun AppNavigation(
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Destino.Materias.rota,
+            startDestination = rotaInicial,
             modifier = Modifier.padding(padding)
         ) {
             composable(Destino.Materias.rota) {
@@ -70,18 +84,32 @@ fun AppNavigation(
             }
             composable(Destino.Agenda.rota) {
                 val viewModel: AgendaViewModel = viewModel()
-                AgendaScreen(viewModel = viewModel)
+                AgendaScreen(
+                    viewModel = viewModel,
+                    onAbrirCaderno = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) },
+                    onAbrirMateria = { materiaId -> navController.navigate(Destino.MateriaDetail.rotaComId(materiaId)) },
+                    disparoMostrarSoAtrasadas = disparoMostrarAtrasadas,
+                    onFiltroAtrasadasConsumido = { disparoMostrarAtrasadas = false }
+                )
             }
             composable(Destino.Caderno.rota) {
                 val viewModel: CadernoViewModel = viewModel()
                 CadernoScreen(
                     viewModel = viewModel,
-                    onAbrirAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) }
+                    onAbrirAula = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) },
+                    onIrParaAgenda = { navegarParaAba(navController, Destino.Agenda.rota) }
                 )
             }
             composable(Destino.Desempenho.rota) {
                 val viewModel: DesempenhoViewModel = viewModel()
-                DesempenhoScreen(viewModel = viewModel)
+                DesempenhoScreen(
+                    viewModel = viewModel,
+                    onIrParaMaterias = { navegarParaAba(navController, Destino.Materias.rota) },
+                    onVerAtrasadas = {
+                        disparoMostrarAtrasadas = true
+                        navegarParaAba(navController, Destino.Agenda.rota)
+                    }
+                )
             }
             composable(Destino.Configuracoes.rota) {
                 val viewModel: ConfiguracoesViewModel = viewModel()
@@ -126,6 +154,18 @@ fun AppNavigation(
     }
 }
 
+/** Navega para uma aba do menu inferior preservando o estado de rolagem/formulário das
+ *  outras abas — mesma lógica usada tanto ao tocar num item do menu quanto ao navegar
+ *  programaticamente de uma tela pra outra (ex.: do card de atrasadas no Desempenho pra
+ *  Agenda), pra não duplicar essa configuração em mais de um lugar. */
+private fun navegarParaAba(navController: NavHostController, rota: String) {
+    navController.navigate(rota) {
+        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 private fun BarraNavegacaoInferior(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -143,13 +183,7 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
                 val selecionado = rotaAtual?.hierarchy?.any { it.route == item.destino.rota } == true
                 NavigationBarItem(
                     selected = selecionado,
-                    onClick = {
-                        navController.navigate(item.destino.rota) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onClick = { navegarParaAba(navController, item.destino.rota) },
                     icon = { androidx.compose.material3.Icon(item.icone, contentDescription = item.rotulo) },
                     label = { Text(item.rotulo) }
                 )

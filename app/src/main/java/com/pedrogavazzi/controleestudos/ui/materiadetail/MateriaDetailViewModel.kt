@@ -37,18 +37,38 @@ class MateriaDetailViewModel(
         viewModelScope.launch { repository.reagendarAula(aula, novaDataHoraMillis) }
     }
 
-    fun agendarEmLote(dataHoraInicialMillis: Long, intervaloDias: Int, quantidade: Int, apenasDiasUteis: Boolean) {
+    fun agendarEmLote(
+        dataHoraInicialMillis: Long,
+        intervaloDias: Int,
+        quantidade: Int,
+        apenasDiasUteis: Boolean,
+        aoConcluir: (idsAgendados: List<Long>) -> Unit = {}
+    ) {
         viewModelScope.launch {
-            repository.agendarEmLote(materiaId, dataHoraInicialMillis, intervaloDias, quantidade, apenasDiasUteis)
+            val ids = repository.agendarEmLote(materiaId, dataHoraInicialMillis, intervaloDias, quantidade, apenasDiasUteis)
+            aoConcluir(ids)
         }
+    }
+
+    /** Desfaz um agendamento em lote recente (volta as aulas indicadas para "sem data"). */
+    fun desfazerAgendamentoEmLote(aulaIds: List<Long>) {
+        viewModelScope.launch { repository.desfazerAgendamentoEmLote(aulaIds) }
     }
 
     fun adicionarAula() {
         viewModelScope.launch { repository.adicionarAula(materiaId) }
     }
 
-    fun excluirAula(aula: Aula) {
-        viewModelScope.launch { repository.excluirAula(aula) }
+    fun excluirAula(aula: Aula, aoConcluir: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.excluirAula(aula)
+            aoConcluir()
+        }
+    }
+
+    /** Desfaz a exclusão de uma aula recente, restaurando ela exatamente como estava. */
+    fun restaurarAula(aula: Aula) {
+        viewModelScope.launch { repository.restaurarAula(aula) }
     }
 
     fun renomearAula(aula: Aula, novoNome: String?) {

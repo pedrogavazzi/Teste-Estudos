@@ -27,6 +27,7 @@ data class DesempenhoMateria(
 data class DesempenhoGeral(
     val totalAulas: Int,
     val aulasConcluidas: Int,
+    val aulasAtrasadas: Int,
     val porMateria: List<DesempenhoMateria>
 ) {
     val percentual: Float
@@ -55,16 +56,25 @@ class DesempenhoViewModel(application: Application) : AndroidViewModel(applicati
                     aulasConcluidas = aulasDaMateria.count { it.concluida },
                     aulasAtrasadas = aulasDaMateria.count { it.statusAtual(agora) == StatusAula.ATRASADA }
                 )
-            }.sortedByDescending { it.totalAulas }
+                // Quem tem mais aulas atrasadas sobe primeiro (é quem mais precisa de atenção);
+                // entre empates, quem está com menor percentual concluído; por fim, ordem alfabética.
+                // Antes disso, a lista era ordenada só pelo tamanho da matéria, o que escondia
+                // matérias pequenas e atrasadas no fim da lista.
+            }.sortedWith(
+                compareByDescending<DesempenhoMateria> { it.aulasAtrasadas }
+                    .thenBy { it.percentual }
+                    .thenBy { it.materia.nome.lowercase() }
+            )
 
             DesempenhoGeral(
                 totalAulas = aulas.size,
                 aulasConcluidas = aulas.count { it.concluida },
+                aulasAtrasadas = aulas.count { it.statusAtual(agora) == StatusAula.ATRASADA },
                 porMateria = porMateria
             )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = DesempenhoGeral(0, 0, emptyList())
+            initialValue = DesempenhoGeral(0, 0, 0, emptyList())
         )
 }

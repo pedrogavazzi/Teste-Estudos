@@ -7,6 +7,7 @@ import com.pedrogavazzi.controleestudos.ControleEstudosApp
 import com.pedrogavazzi.controleestudos.data.Aula
 import com.pedrogavazzi.controleestudos.data.Materia
 import com.pedrogavazzi.controleestudos.data.StudyRepository
+import com.pedrogavazzi.controleestudos.ui.caderno.CadernoSerializer
 import com.pedrogavazzi.controleestudos.ui.components.TAMANHO_MAXIMO_NOME_MATERIA
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,8 @@ import kotlinx.coroutines.launch
 data class MateriaComProgresso(
     val materia: Materia,
     val aulasConcluidas: Int,
-    val totalAulas: Int
+    val totalAulas: Int,
+    val cadernosComConteudo: Int
 ) {
     val percentual: Float
         get() = if (totalAulas == 0) 0f else aulasConcluidas / totalAulas.toFloat()
@@ -35,7 +37,8 @@ class MateriasViewModel(application: Application) : AndroidViewModel(application
                 MateriaComProgresso(
                     materia = materia,
                     aulasConcluidas = aulasDaMateria.count { it.concluida },
-                    totalAulas = aulasDaMateria.size
+                    totalAulas = aulasDaMateria.size,
+                    cadernosComConteudo = aulasDaMateria.count { CadernoSerializer.temConteudo(it.anotacoesCaderno) }
                 )
             }
         }.stateIn(

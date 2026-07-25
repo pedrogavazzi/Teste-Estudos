@@ -19,6 +19,9 @@ interface AulaDao {
     @Query("SELECT * FROM aulas WHERE id = :id")
     fun observarPorId(id: Long): Flow<Aula?>
 
+    @Query("SELECT * FROM aulas WHERE id = :id")
+    suspend fun buscarPorIdSuspend(id: Long): Aula?
+
     @Query("SELECT * FROM aulas WHERE materiaId = :materiaId ORDER BY numero DESC LIMIT 1")
     suspend fun ultimaAulaDaMateria(materiaId: Long): Aula?
 

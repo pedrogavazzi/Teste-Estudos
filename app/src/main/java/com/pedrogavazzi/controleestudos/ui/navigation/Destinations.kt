@@ -31,3 +31,13 @@ val itensNavegacaoInferior = listOf(
     ItemNavegacao(Destino.Desempenho, "Desempenho", Icons.Filled.BarChart),
     ItemNavegacao(Destino.Configuracoes, "Ajustes", Icons.Filled.Settings)
 )
+
+/** Traduz a preferência de aba inicial (que mora no modelo de dados, sem depender de nada de
+ *  navegação) para a rota correspondente — só esse arquivo, que já é o dono do conceito de
+ *  rota, sabe fazer essa tradução. */
+fun rotaInicialPara(abaInicial: com.pedrogavazzi.controleestudos.data.AbaInicial): String = when (abaInicial) {
+    com.pedrogavazzi.controleestudos.data.AbaInicial.MATERIAS -> Destino.Materias.rota
+    com.pedrogavazzi.controleestudos.data.AbaInicial.AGENDA -> Destino.Agenda.rota
+    com.pedrogavazzi.controleestudos.data.AbaInicial.CADERNO -> Destino.Caderno.rota
+    com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO -> Destino.Desempenho.rota
+}

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
+import com.pedrogavazzi.controleestudos.data.AbaInicial
 import com.pedrogavazzi.controleestudos.data.ExportadorPdf
 import com.pedrogavazzi.controleestudos.data.PreferenciasApp
 import com.pedrogavazzi.controleestudos.data.StudyRepository
@@ -25,9 +26,14 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     val notificacoesAtivadas: StateFlow<Boolean> = preferencias.notificacoesAtivadas
     val somAtivado: StateFlow<Boolean> = preferencias.somAtivado
     val minutosAntecedencia: StateFlow<Int> = preferencias.minutosAntecedencia
+    val abaInicial: StateFlow<AbaInicial> = preferencias.abaInicial
 
     fun definirTema(tema: TemaApp) {
         preferencias.definirTema(tema)
+    }
+
+    fun definirAbaInicial(aba: AbaInicial) {
+        preferencias.definirAbaInicial(aba)
     }
 
     fun definirUsarCorDinamica(ativo: Boolean) {

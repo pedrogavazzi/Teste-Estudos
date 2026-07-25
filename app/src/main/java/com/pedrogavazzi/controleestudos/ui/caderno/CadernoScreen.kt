@@ -1,6 +1,5 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -56,7 +54,11 @@ import com.pedrogavazzi.controleestudos.ui.components.formatarHora
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
+fun CadernoScreen(
+    viewModel: CadernoViewModel,
+    onAbrirAula: (Long) -> Unit,
+    onIrParaAgenda: () -> Unit = {}
+) {
     val estado by viewModel.estado.collectAsState()
     val dataSelecionada by viewModel.dataSelecionada.collectAsState()
     val context = LocalContext.current
@@ -100,8 +102,9 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
             }
         }
     ) { padding ->
+        com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima(Modifier.padding(padding)) {
         if (semAulas) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Filled.EditNote,
@@ -114,11 +117,12 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
                         if (ehHoje) "Nenhuma aula agendada para hoje." else "Nenhuma aula agendada para esse dia.",
                         modifier = Modifier.padding(16.dp)
                     )
+                    androidx.compose.material3.Button(onClick = onIrParaAgenda) { Text("Ver agenda completa") }
                 }
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -158,6 +162,7 @@ fun CadernoScreen(viewModel: CadernoViewModel, onAbrirAula: (Long) -> Unit) {
                 item { Spacer(Modifier.padding(40.dp)) }
             }
         }
+        }
     }
 }
 
@@ -178,7 +183,7 @@ private fun ItemCaderno(
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(10.dp).background(cor, CircleShape))
+                com.pedrogavazzi.controleestudos.ui.components.IniciaisDaMateria(nomeMateria = item.nomeMateria, cor = cor)
                 Spacer(Modifier.padding(start = 8.dp))
                 Column(Modifier.weight(1f)) {
                     TextoNomeMateria(

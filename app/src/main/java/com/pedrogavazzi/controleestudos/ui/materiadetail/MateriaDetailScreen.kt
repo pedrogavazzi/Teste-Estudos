@@ -21,6 +21,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +44,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.ui.platform.LocalContext
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
+import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +77,8 @@ fun MateriaDetailScreen(
     var renomeandoAlgumaAula by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val quantidadeItensAntesDasAulas = 1 + if (aulasSemData > 0) 1 else 0
+    val snackbarHostState = remember { SnackbarHostState() }
+    val escopo = rememberCoroutineScope()
 
     LaunchedEffect(aulaExpandidaId) {
         val id = aulaExpandidaId ?: return@LaunchedEffect
@@ -80,6 +89,7 @@ fun MateriaDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -165,7 +175,20 @@ fun MateriaDetailScreen(
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
                     onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },
                     onRenomear = { novoNome -> viewModel.renomearAula(aula, novoNome) },
-                    onExcluir = { viewModel.excluirAula(aula) },
+                    onExcluir = {
+                        viewModel.excluirAula(aula) {
+                            escopo.launch {
+                                val resultado = snackbarHostState.showSnackbar(
+                                    message = "${aula.nomeExibido()} excluída",
+                                    actionLabel = "Desfazer",
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (resultado == SnackbarResult.ActionPerformed) {
+                                    viewModel.restaurarAula(aula)
+                                }
+                            }
+                        }
+                    },
                     onEditandoAlterado = { editando -> renomeandoAlgumaAula = editando }
                 )
             }
@@ -178,7 +201,18 @@ fun MateriaDetailScreen(
             quantidadeMaximaDisponivel = aulasSemData,
             onDismiss = { mostrarDialogoLote = false },
             onConfirmar = { dataHoraInicial, intervaloDias, quantidade, apenasDiasUteis ->
-                viewModel.agendarEmLote(dataHoraInicial, intervaloDias, quantidade, apenasDiasUteis)
+                viewModel.agendarEmLote(dataHoraInicial, intervaloDias, quantidade, apenasDiasUteis) { idsAgendados ->
+                    escopo.launch {
+                        val resultado = snackbarHostState.showSnackbar(
+                            message = "${idsAgendados.size} aula(s) agendada(s)",
+                            actionLabel = "Desfazer",
+                            duration = SnackbarDuration.Short
+                        )
+                        if (resultado == SnackbarResult.ActionPerformed) {
+                            viewModel.desfazerAgendamentoEmLote(idsAgendados)
+                        }
+                    }
+                }
                 mostrarDialogoLote = false
             }
         )

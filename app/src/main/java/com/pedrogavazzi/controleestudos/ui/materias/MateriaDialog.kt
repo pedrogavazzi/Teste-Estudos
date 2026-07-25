@@ -77,7 +77,7 @@ fun MateriaDialog(
                 )
                 Spacer(Modifier.padding(top = 12.dp))
                 Text("Cor de identificação", style = MaterialTheme.typography.labelLarge)
-                PaletaMaterias.chunked(6).forEach { linha ->
+                PaletaMaterias.chunked(5).forEach { linha ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -116,36 +116,37 @@ fun MateriaDialog(
  * Bolinha de cor selecionável: quando marcada, ganha um anel de contorno bem visível e um
  * ícone de check com cor de contraste automática (branco ou preto conforme a cor de fundo) —
  * a diferença de antes (2dp de padding) era sutil demais para perceber qual estava escolhida.
+ * A área de toque é maior que o círculo visível (48dp vs. 36dp) — o mínimo recomendado pra
+ * qualquer alvo de toque, mesmo quando o elemento visual em si é menor.
  */
 @Composable
 private fun BolinhaDeCor(cor: Color, selecionada: Boolean, onClick: () -> Unit) {
     Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(cor)
-            .border(
-                width = if (selecionada) 3.dp else 1.dp,
-                color = if (selecionada) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-                shape = CircleShape
-            )
-            .clickable(onClick = onClick),
+        modifier = Modifier.size(48.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        if (selecionada) {
-            Icon(
-                Icons.Filled.Check,
-                contentDescription = "Cor selecionada",
-                tint = corDeContraste(cor),
-                modifier = Modifier.size(18.dp)
-            )
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(cor)
+                .border(
+                    width = if (selecionada) 3.dp else 1.dp,
+                    color = if (selecionada) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selecionada) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = "Cor selecionada",
+                    tint = com.pedrogavazzi.controleestudos.ui.components.corDeContrasteParaFundo(cor),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
-}
-
-private fun corDeContraste(cor: Color): Color {
-    val luminancia = 0.299 * cor.red + 0.587 * cor.green + 0.114 * cor.blue
-    return if (luminancia > 0.6) Color.Black else Color.White
 }
 
 fun Color.toHex(): String {

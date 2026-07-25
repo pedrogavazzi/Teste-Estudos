@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -76,6 +77,45 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                val abaInicial by viewModel.abaInicial.collectAsState()
+                SecaoConfiguracao(titulo = "Aba inicial", icone = Icons.Filled.Home) {
+                    Text(
+                        "Qual aba abre primeiro quando você entra no app",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.AGENDA,
+                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.AGENDA) },
+                            label = { Text("Agenda") }
+                        )
+                        FilterChip(
+                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.MATERIAS,
+                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.MATERIAS) },
+                            label = { Text("Matérias") }
+                        )
+                        FilterChip(
+                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.CADERNO,
+                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.CADERNO) },
+                            label = { Text("Caderno") }
+                        )
+                        FilterChip(
+                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO,
+                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO) },
+                            label = { Text("Desempenho") }
+                        )
+                    }
+                }
+            }
+
             item {
                 SecaoConfiguracao(titulo = "Tema", icone = Icons.Filled.Palette) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

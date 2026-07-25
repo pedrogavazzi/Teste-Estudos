@@ -8,6 +8,11 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Tema visual do app. */
 enum class TemaApp { CLARO, ESCURO, SISTEMA }
 
+/** Qual aba abre primeiro quando o app é iniciado. Fica no modelo de dados (não na camada de
+ *  navegação) de propósito, pra essa preferência não depender de nada da UI — quem traduz isso
+ *  pra uma rota de navegação é a própria tela de navegação, não este arquivo. */
+enum class AbaInicial { MATERIAS, AGENDA, CADERNO, DESEMPENHO }
+
 /** Opções de antecedência do alerta, em minutos antes do horário agendado da aula. */
 val OPCOES_ANTECEDENCIA_MINUTOS = listOf(0, 5, 10, 15, 30, 45, 60)
 
@@ -47,6 +52,20 @@ class PreferenciasApp(context: Context) {
     private val _minutosAntecedencia = MutableStateFlow(prefs.getInt(CHAVE_ANTECEDENCIA, 0))
     val minutosAntecedencia: StateFlow<Int> = _minutosAntecedencia.asStateFlow()
 
+    // Agenda por padrão: é a tela que responde "o que eu preciso fazer hoje", que é o motivo
+    // mais comum de abrir o app no dia a dia — Matérias é uma tela de configuração, usada com
+    // menos frequência depois que o semestre já está cadastrado.
+    private val _abaInicial = MutableStateFlow(
+        runCatching { AbaInicial.valueOf(prefs.getString(CHAVE_ABA_INICIAL, null) ?: AbaInicial.AGENDA.name) }
+            .getOrDefault(AbaInicial.AGENDA)
+    )
+    val abaInicial: StateFlow<AbaInicial> = _abaInicial.asStateFlow()
+
+    fun definirAbaInicial(novo: AbaInicial) {
+        _abaInicial.value = novo
+        prefs.edit().putString(CHAVE_ABA_INICIAL, novo.name).apply()
+    }
+
     fun definirTema(novo: TemaApp) {
         _tema.value = novo
         prefs.edit().putString(CHAVE_TEMA, novo.name).apply()
@@ -74,5 +93,6 @@ class PreferenciasApp(context: Context) {
         const val CHAVE_NOTIFICACOES = "notificacoes_ativadas"
         const val CHAVE_SOM = "som_ativado"
         const val CHAVE_ANTECEDENCIA = "minutos_antecedencia"
+        const val CHAVE_ABA_INICIAL = "aba_inicial"
     }
 }
