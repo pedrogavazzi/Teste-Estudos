@@ -179,19 +179,27 @@ private fun MateriaCard(
         colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
     ) {
         Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Top) {
                 com.pedrogavazzi.controleestudos.ui.components.IniciaisDaMateria(
                     nomeMateria = item.materia.nome,
                     cor = cor,
                     tamanho = 28.dp
                 )
                 Spacer(Modifier.padding(start = 8.dp))
-                com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria(
-                    nome = item.materia.nome,
+                // Nome com a largura inteira do card, quebrando em mais linhas se precisar,
+                // em vez de dividir espaço com os botões de editar/excluir na mesma linha
+                // (o que cortava nomes mais longos sem necessidade).
+                Text(
+                    item.materia.nome,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).padding(top = 4.dp)
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 IconButton(onClick = onEditar) {
                     Icon(Icons.Filled.Edit, contentDescription = "Editar")
                 }
@@ -199,7 +207,6 @@ private fun MateriaCard(
                     Icon(Icons.Filled.Delete, contentDescription = "Excluir")
                 }
             }
-            Spacer(Modifier.padding(top = 8.dp))
             LinearProgressIndicator(
                 progress = { item.percentual },
                 modifier = Modifier.fillMaxWidth(),

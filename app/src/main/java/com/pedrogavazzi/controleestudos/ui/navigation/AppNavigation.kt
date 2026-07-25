@@ -1,6 +1,7 @@
 package com.pedrogavazzi.controleestudos.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -12,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -189,7 +191,10 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
                             item.rotulo,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            softWrap = false
+                            softWrap = false,
+                            // Reduzido de propósito: com 5 abas na barra, o rótulo "Desempenho"
+                            // não cabia no tamanho padrão e cortava no meio ("Desemp...").
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
                         )
                     }
                 )

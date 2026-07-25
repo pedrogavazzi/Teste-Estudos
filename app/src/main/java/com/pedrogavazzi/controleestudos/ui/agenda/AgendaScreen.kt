@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,6 +52,7 @@ import com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima
 import com.pedrogavazzi.controleestudos.ui.components.IniciaisDaMateria
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
+import com.pedrogavazzi.controleestudos.ui.components.abrirLinkDaAula
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
 import com.pedrogavazzi.controleestudos.ui.components.formatarDiaSemanaData
 import com.pedrogavazzi.controleestudos.ui.components.formatarHora
@@ -267,6 +269,7 @@ private fun ItemAgenda(
     onMarcarConclusao: (Boolean) -> Unit,
     onAlterarData: () -> Unit
 ) {
+    val context = LocalContext.current
     val status = item.aula.statusAtual()
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
@@ -297,6 +300,15 @@ private fun ItemAgenda(
                 Text(formatarHora(item.aula.dataHoraMillis!!), style = MaterialTheme.typography.bodyLarge)
                 if (status == StatusAula.ATRASADA) {
                     Text("Atrasada — não concluída nem reagendada", color = VermelhoAlerta, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (item.aula.link.isNotBlank()) {
+                IconButton(onClick = { abrirLinkDaAula(context, item.aula.link) }) {
+                    Icon(
+                        Icons.Filled.OpenInNew,
+                        contentDescription = "Abrir link da aula",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             StatusChip(status, modifier = Modifier.padding(end = 8.dp))

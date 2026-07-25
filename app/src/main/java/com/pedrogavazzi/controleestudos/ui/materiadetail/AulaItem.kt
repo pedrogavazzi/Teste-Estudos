@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -94,6 +95,18 @@ fun AulaItem(
                 )
                 Spacer(Modifier.padding(start = 4.dp))
                 StatusChip(status, modifier = Modifier.padding(top = 8.dp))
+                if (aula.link.isNotBlank()) {
+                    IconButton(
+                        onClick = { abrirLinkDaAula(context, aula.link) },
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.OpenInNew,
+                            contentDescription = "Abrir link da aula",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
 
             Row(
