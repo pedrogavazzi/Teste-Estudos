@@ -53,7 +53,10 @@ data class Aula(
     val anotacoesCaderno: String = "",
     val vezesReagendada: Int = 0,
     /** Nome customizado opcional — se vazio/nulo, usa o padrão "Aula N" (ver [nomeExibido]). */
-    val nomePersonalizado: String? = null
+    val nomePersonalizado: String? = null,
+    /** Link opcional da aula (ex.: videochamada, gravação, material) — aberto no navegador
+     *  ou app correspondente ao tocar. */
+    val link: String = ""
 )
 
 /** Nome exibido da aula: o personalizado, se definido, senão o padrão numerado "Aula N". */

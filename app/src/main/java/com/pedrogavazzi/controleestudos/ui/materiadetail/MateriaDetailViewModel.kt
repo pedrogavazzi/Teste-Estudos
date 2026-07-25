@@ -83,6 +83,10 @@ class MateriaDetailViewModel(
         viewModelScope.launch { repository.salvarObservacao(aula, observacao) }
     }
 
+    fun salvarLink(aula: Aula, link: String) {
+        viewModelScope.launch { repository.salvarLink(aula, link) }
+    }
+
     fun salvarAnotacaoCaderno(aula: Aula, anotacoes: String) {
         viewModelScope.launch { repository.salvarAnotacaoCaderno(aula, anotacoes) }
     }

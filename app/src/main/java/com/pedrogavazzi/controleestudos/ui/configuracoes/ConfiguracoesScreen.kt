@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -198,6 +199,23 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                                 label = { Text(if (minutos == 0) "Na hora" else "$minutos min") }
                             )
                         }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "Arraste para o lado para ver todas as opções",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
                     }
                 }
             }

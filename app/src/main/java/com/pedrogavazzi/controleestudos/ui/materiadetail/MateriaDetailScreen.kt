@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.EventRepeat
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,7 +44,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.ui.platform.LocalContext
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
 import com.pedrogavazzi.controleestudos.data.nomeExibido
-import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +82,10 @@ fun MateriaDetailScreen(
         val id = aulaExpandidaId ?: return@LaunchedEffect
         val indiceNaLista = aulas.indexOfFirst { it.id == id }
         if (indiceNaLista != -1) {
+            // Uma pequena espera antes de rolar: deixa a animação de abrir o card começar
+            // primeiro, em vez de rolar atrás de uma altura que ainda está mudando — as duas
+            // coisas ao mesmo tempo pareciam trepidantes.
+            kotlinx.coroutines.delay(90)
             listState.animateScrollToItem(quantidadeItensAntesDasAulas + indiceNaLista)
         }
     }
@@ -91,19 +93,27 @@ fun MateriaDetailScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    TextoNomeMateria(
-                        nome = materia?.nome ?: "Aulas",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onVoltar) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
+            Column {
+                androidx.compose.material3.TopAppBar(
+                    title = {},
+                    navigationIcon = {
+                        IconButton(onClick = onVoltar) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
+                        }
                     }
-                }
-            )
+                )
+                // Nome da matéria numa linha própria, com a largura inteira da tela — dentro
+                // do título centralizado da barra de cima ele ficava espremido entre o botão
+                // de voltar e a borda, cortando nomes mais longos sem necessidade.
+                Text(
+                    materia?.nome ?: "Aulas",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
         },
         floatingActionButton = {
             if (aulaExpandidaId == null && !renomeandoAlgumaAula) {
@@ -173,6 +183,7 @@ fun MateriaDetailScreen(
                     onRemoverAgendamento = { viewModel.agendarAula(aula, null) },
                     onMarcarConclusao = { concluida -> viewModel.marcarConclusao(aula, concluida) },
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
+                    onSalvarLink = { link -> viewModel.salvarLink(aula, link) },
                     onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },
                     onRenomear = { novoNome -> viewModel.renomearAula(aula, novoNome) },
                     onExcluir = {

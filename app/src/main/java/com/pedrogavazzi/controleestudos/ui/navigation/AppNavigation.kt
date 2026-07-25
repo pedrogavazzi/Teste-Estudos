@@ -87,7 +87,6 @@ fun AppNavigation(
                 AgendaScreen(
                     viewModel = viewModel,
                     onAbrirCaderno = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) },
-                    onAbrirMateria = { materiaId -> navController.navigate(Destino.MateriaDetail.rotaComId(materiaId)) },
                     disparoMostrarSoAtrasadas = disparoMostrarAtrasadas,
                     onFiltroAtrasadasConsumido = { disparoMostrarAtrasadas = false }
                 )
@@ -185,7 +184,14 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
                     selected = selecionado,
                     onClick = { navegarParaAba(navController, item.destino.rota) },
                     icon = { androidx.compose.material3.Icon(item.icone, contentDescription = item.rotulo) },
-                    label = { Text(item.rotulo) }
+                    label = {
+                        Text(
+                            item.rotulo,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            softWrap = false
+                        )
+                    }
                 )
             }
         }

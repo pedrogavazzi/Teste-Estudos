@@ -89,13 +89,13 @@ private fun inicioDoDia(millis: Long): Long = Calendar.getInstance().apply {
 fun AgendaScreen(
     viewModel: AgendaViewModel,
     onAbrirCaderno: (Long) -> Unit = {},
-    onAbrirMateria: (Long) -> Unit = {},
     disparoMostrarSoAtrasadas: Boolean = false,
     onFiltroAtrasadasConsumido: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val aulas by viewModel.aulasAgendadas.collectAsState()
     val aulasSemData by viewModel.aulasSemData.collectAsState()
+    val temAulasComData by viewModel.temAulasComData.collectAsState()
     val soAtrasadas by viewModel.mostrarSoAtrasadas.collectAsState()
     var termoBusca by remember { mutableStateOf("") }
 
@@ -121,6 +121,10 @@ fun AgendaScreen(
                 it.aula.nomeExibido().contains(termoBusca, ignoreCase = true)
         }
     }
+    // A seção "sem data" não aparece quando o filtro "só atrasadas" está ligado (não faz
+    // sentido misturar os dois) — essa mesma condição é usada tanto pra decidir se a seção
+    // deve ser desenhada quanto pra decidir se a tela está "vazia".
+    val semDataVisivel = semDataFiltradas.isNotEmpty() && !soAtrasadas
 
     Scaffold(
         topBar = {
@@ -139,7 +143,11 @@ fun AgendaScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
-                if (aulas.isNotEmpty()) {
+                if (temAulasComData || soAtrasadas) {
+                    // Usa temAulasComData (não filtrado) em vez de aulas.isNotEmpty(): se
+                    // dependesse da lista já filtrada, ligar "só atrasadas" sem nenhuma
+                    // atrasada esvaziava a lista E escondia este botão junto — sem nenhum
+                    // jeito de desligar o filtro de novo.
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                         FilterChip(
                             selected = soAtrasadas,
@@ -148,7 +156,7 @@ fun AgendaScreen(
                         )
                     }
                 }
-                if (aulas.isEmpty() && aulasSemData.isEmpty()) {
+                if (!temAulasComData && aulasSemData.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -164,11 +172,14 @@ fun AgendaScreen(
                             )
                         }
                     }
-                } else if (aulasFiltradas.isEmpty() && semDataFiltradas.isEmpty()) {
+                } else if (aulasFiltradas.isEmpty() && !semDataVisivel) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            if (termoBusca.isNotBlank()) "Nenhuma aula encontrada para \"$termoBusca\"."
-                            else "Nenhuma aula atrasada — tudo em dia.",
+                            when {
+                                termoBusca.isNotBlank() -> "Nenhuma aula encontrada para \"$termoBusca\"."
+                                soAtrasadas -> "Nenhuma aula atrasada — tudo em dia."
+                                else -> "Nenhuma aula encontrada."
+                            },
                             modifier = Modifier.padding(16.dp)
                         )
                     }
@@ -223,7 +234,7 @@ fun AgendaScreen(
                                 )
                             }
                         }
-                        if (semDataFiltradas.isNotEmpty() && !soAtrasadas) {
+                        if (semDataVisivel) {
                             item(key = "cabecalho_sem_data") {
                                 Text(
                                     "Sem data marcada (${semDataFiltradas.size})",
@@ -234,7 +245,10 @@ fun AgendaScreen(
                                 )
                             }
                             items(semDataFiltradas, key = { "semdata_${it.aula.id}" }) { item ->
-                                ItemSemData(item = item, onAbrirMateria = { onAbrirMateria(item.aula.materiaId) })
+                                ItemSemData(
+                                    item = item,
+                                    onAgendar = { novaData -> viewModel.agendarAula(item.aula, novaData) }
+                                )
                             }
                         }
                         item { Spacer(Modifier.padding(40.dp)) }
@@ -298,7 +312,8 @@ private fun ItemAgenda(
 }
 
 @Composable
-private fun ItemSemData(item: AulaComMateria, onAbrirMateria: () -> Unit) {
+private fun ItemSemData(item: AulaComMateria, onAgendar: (Long) -> Unit) {
+    val context = LocalContext.current
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
 
@@ -321,7 +336,11 @@ private fun ItemSemData(item: AulaComMateria, onAbrirMateria: () -> Unit) {
                 )
                 Text(item.aula.nomeExibido(), style = MaterialTheme.typography.bodyLarge)
             }
-            TextButton(onClick = onAbrirMateria) { Text("Agendar") }
+            // Abre o calendário na hora — antes isso mandava pra tela da matéria só pra
+            // agendar de lá, um passo a mais sem necessidade.
+            TextButton(onClick = {
+                abrirSeletorDeDataEHora(context, null) { novaData -> onAgendar(novaData) }
+            }) { Text("Agendar") }
         }
     }
 }

@@ -155,36 +155,10 @@ fun CadernoEditorScreen(
             Column {
                 CenterAlignedTopAppBar(
                     title = {
-                        Column {
-                            TextoNomeMateria(
-                                nome = estado.materia?.nome?.let { "$it — ${aula?.nomeExibido() ?: ""}" } ?: "Caderno",
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 2
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (aula?.dataHoraMillis != null) {
-                                    Text(
-                                        formatarDataHora(aula.dataHoraMillis),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                if (!modoLeitura && estadoSalvamento != EstadoSalvamento.OCIOSO) {
-                                    if (aula?.dataHoraMillis != null) {
-                                        Text(" • ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text(
-                                        if (estadoSalvamento == EstadoSalvamento.PENDENTE) "Salvando…" else "Salvo",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (estadoSalvamento == EstadoSalvamento.PENDENTE) {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        } else {
-                                            MaterialTheme.colorScheme.primary
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        TextoNomeMateria(
+                            nome = estado.materia?.nome?.let { "$it — ${aula?.nomeExibido() ?: ""}" } ?: "Caderno",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { salvarAgora(); onVoltar() }) {
@@ -209,17 +183,47 @@ fun CadernoEditorScreen(
                                 }
                             }
                         }
-                        if (aula != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
-                                Text("Concluída", style = MaterialTheme.typography.labelSmall)
-                                CaixaConclusao(
-                                    concluida = aula.concluida,
-                                    onAlterar = { concluida -> viewModel.marcarConclusao(aula, concluida) }
+                    }
+                )
+                // Linha de status separada da barra de título — data, indicador de
+                // salvamento e o marcador de conclusão, cada um com espaço próprio em vez de
+                // disputar lugar dentro do título (o que deixava tudo espremido e cortado).
+                if (aula != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            if (aula.dataHoraMillis != null) {
+                                Text(
+                                    formatarDataHora(aula.dataHoraMillis),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (!modoLeitura && estadoSalvamento != EstadoSalvamento.OCIOSO) {
+                                Text(
+                                    if (estadoSalvamento == EstadoSalvamento.PENDENTE) "Salvando…" else "Salvo",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (estadoSalvamento == EstadoSalvamento.PENDENTE) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    }
                                 )
                             }
                         }
+                        Text(
+                            "Concluída",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        CaixaConclusao(
+                            concluida = aula.concluida,
+                            onAlterar = { concluida -> viewModel.marcarConclusao(aula, concluida) }
+                        )
                     }
-                )
+                }
                 Divider()
             }
         },

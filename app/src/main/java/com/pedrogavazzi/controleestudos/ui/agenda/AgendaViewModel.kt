@@ -66,6 +66,18 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
+    /** Se existe alguma aula com data marcada, SEM aplicar o filtro "só atrasadas" — usado só
+     *  pra decidir se o botão do filtro deve aparecer. Precisa ser independente do resultado
+     *  filtrado: senão, ligar o filtro e não ter nenhuma atrasada faz a lista (e o próprio
+     *  botão do filtro) sumir, sem nenhum jeito de desligá-lo de novo. */
+    val temAulasComData: StateFlow<Boolean> =
+        aulasComMateria.map { itens -> itens.any { it.aula.dataHoraMillis != null && !it.aula.concluida } }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false
+            )
+
     fun alternarFiltroAtrasadas() {
         _mostrarSoAtrasadas.value = !_mostrarSoAtrasadas.value
     }

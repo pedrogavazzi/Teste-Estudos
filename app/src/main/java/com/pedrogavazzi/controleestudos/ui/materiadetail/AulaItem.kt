@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -41,6 +42,7 @@ import com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor
 import com.pedrogavazzi.controleestudos.ui.components.IconeConclusao
 import com.pedrogavazzi.controleestudos.ui.components.StatusChip
 import com.pedrogavazzi.controleestudos.ui.components.TAMANHO_MAXIMO_NOME_MATERIA
+import com.pedrogavazzi.controleestudos.ui.components.abrirLinkDaAula
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import com.pedrogavazzi.controleestudos.ui.theme.VermelhoAlerta
@@ -55,6 +57,7 @@ fun AulaItem(
     onRemoverAgendamento: () -> Unit,
     onMarcarConclusao: (Boolean) -> Unit,
     onSalvarObservacao: (String) -> Unit,
+    onSalvarLink: (String) -> Unit,
     onAbrirCaderno: () -> Unit,
     onRenomear: (String?) -> Unit,
     onExcluir: () -> Unit,
@@ -132,7 +135,19 @@ fun AulaItem(
                 )
             }
 
-            AnimatedVisibility(visible = expandido) {
+            AnimatedVisibility(
+                visible = expandido,
+                enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180)) +
+                    androidx.compose.animation.expandVertically(
+                        animationSpec = androidx.compose.animation.core.tween(220),
+                        expandFrom = Alignment.Top
+                    ),
+                exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) +
+                    androidx.compose.animation.shrinkVertically(
+                        animationSpec = androidx.compose.animation.core.tween(200),
+                        shrinkTowards = Alignment.Top
+                    )
+            ) {
                 Column(Modifier.padding(top = 12.dp)) {
 
                     // Uma linha só para as ações de agendamento, em vez de dois botões
@@ -197,6 +212,24 @@ fun AulaItem(
                         onSalvar = onSalvarObservacao,
                         rotulo = "Observação"
                     )
+
+                    Spacer(Modifier.padding(top = 8.dp))
+                    AnotacaoEditor(
+                        chaveDeIdentidade = aula.id,
+                        valorSalvo = aula.link,
+                        onSalvar = onSalvarLink,
+                        rotulo = "Link da aula (opcional)",
+                        minLinhas = 1
+                    )
+                    if (aula.link.isNotBlank()) {
+                        TextButton(
+                            onClick = { abrirLinkDaAula(context, aula.link) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                            Text("Abrir link")
+                        }
+                    }
 
                     Spacer(Modifier.padding(top = 8.dp))
                     com.pedrogavazzi.controleestudos.ui.caderno.PreviaDoCaderno(

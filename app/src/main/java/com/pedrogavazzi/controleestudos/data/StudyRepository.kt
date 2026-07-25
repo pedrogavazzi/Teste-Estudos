@@ -196,6 +196,11 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         aulaDao.atualizar(aula.copy(anotacoesCaderno = anotacoes))
     }
 
+    /** Salva o link opcional da aula (videochamada, gravação, material etc.). */
+    suspend fun salvarLink(aula: Aula, link: String) {
+        aulaDao.atualizar(aula.copy(link = link))
+    }
+
     suspend fun excluirAula(aula: Aula) {
         alarmScheduler.cancelar(aula)
         aulaDao.excluir(aula)
