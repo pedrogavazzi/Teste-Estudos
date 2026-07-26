@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pedrogavazzi.controleestudos.ControleEstudosApp
 import com.pedrogavazzi.controleestudos.data.AbaInicial
+import com.pedrogavazzi.controleestudos.data.ConfiguracaoAgendamentoAutomatico
 import com.pedrogavazzi.controleestudos.data.ExportadorPdf
 import com.pedrogavazzi.controleestudos.data.PreferenciasApp
 import com.pedrogavazzi.controleestudos.data.StudyRepository
@@ -27,6 +28,7 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     val somAtivado: StateFlow<Boolean> = preferencias.somAtivado
     val minutosAntecedencia: StateFlow<Int> = preferencias.minutosAntecedencia
     val abaInicial: StateFlow<AbaInicial> = preferencias.abaInicial
+    val configuracaoAutomatica: StateFlow<ConfiguracaoAgendamentoAutomatico> = preferencias.configuracaoAutomatica
 
     fun definirTema(tema: TemaApp) {
         preferencias.definirTema(tema)
@@ -34,6 +36,27 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
 
     fun definirAbaInicial(aba: AbaInicial) {
         preferencias.definirAbaInicial(aba)
+    }
+
+    fun definirConfiguracaoAutomatica(config: ConfiguracaoAgendamentoAutomatico) {
+        preferencias.definirConfiguracaoAutomatica(config)
+    }
+
+    /** Agenda automaticamente todas as aulas ainda sem data, misturando todas as matérias.
+     *  [aoConcluir] recebe quantas aulas foram agendadas, pra tela mostrar o resultado. */
+    fun agendarAutomaticamente(aoConcluir: (Int) -> Unit) {
+        viewModelScope.launch {
+            val quantidade = repository.agendarAutomaticamente()
+            aoConcluir(quantidade)
+        }
+    }
+
+    /** Limpa e refaz o agendamento automático de TODAS as aulas não concluídas, do zero. */
+    fun refazerAgendamentoAutomatico(aoConcluir: (Int) -> Unit) {
+        viewModelScope.launch {
+            val quantidade = repository.refazerAgendamentoAutomatico()
+            aoConcluir(quantidade)
+        }
     }
 
     fun definirUsarCorDinamica(ativo: Boolean) {

@@ -49,7 +49,25 @@ fun abrirSeletorDeDataEHora(
     ).show()
 }
 
-/** Abre só o seletor nativo de data (sem horário), usado para navegar entre dias no Caderno. */
+/** Abre só o seletor nativo de horário (sem data), devolvendo minutos desde meia-noite —
+ *  usado pra escolher os horários do agendamento automático. */
+fun abrirSeletorDeHora(
+    context: Context,
+    minutosIniciais: Int = 19 * 60,
+    onHoraSelecionada: (Int) -> Unit
+) {
+    val horaInicial = minutosIniciais / 60
+    val minutoInicial = minutosIniciais % 60
+    TimePickerDialog(
+        context,
+        { _, horaEscolhida, minutoEscolhido ->
+            onHoraSelecionada(horaEscolhida * 60 + minutoEscolhido)
+        },
+        horaInicial,
+        minutoInicial,
+        true
+    ).show()
+}
 fun abrirSeletorDeData(
     context: Context,
     dataInicialMillis: Long? = null,

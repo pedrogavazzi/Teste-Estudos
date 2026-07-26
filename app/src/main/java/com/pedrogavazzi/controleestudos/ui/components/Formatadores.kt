@@ -36,6 +36,11 @@ fun formatarDiaSemanaData(millis: Long): String {
 fun formatarHora(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(formatadorHora)
 
+/** Formata minutos desde meia-noite como "HH:mm" — usado nos horários do agendamento
+ *  automático, que não têm uma data associada (só um horário do dia). */
+fun formatarMinutosComoHora(minutosDesdeMeiaNoite: Int): String =
+    "%02d:%02d".format(minutosDesdeMeiaNoite / 60, minutosDesdeMeiaNoite % 60)
+
 /**
  * Exibe o nome de uma matéria de forma consistente em todas as telas: como o nome pode ter
  * até [TAMANHO_MAXIMO_NOME_MATERIA] caracteres, corta com reticências além de [maxLines] linhas

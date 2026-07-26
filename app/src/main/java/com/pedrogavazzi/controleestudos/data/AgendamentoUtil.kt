@@ -57,4 +57,92 @@ object AgendamentoUtil {
         }
         return resultado
     }
+
+    /**
+     * Intercala vários grupos em rodízio (pega o próximo item de cada grupo, um de cada vez,
+     * até todos esvaziarem) — usado pra misturar as aulas de várias matérias sem terminar uma
+     * matéria inteira antes de começar a próxima. A ordem interna de cada grupo é preservada.
+     */
+    fun <T> misturarRoundRobin(grupos: List<List<T>>): List<T> {
+        val resultado = mutableListOf<T>()
+        val indices = IntArray(grupos.size)
+        var restantes = grupos.sumOf { it.size }
+        while (restantes > 0) {
+            for (i in grupos.indices) {
+                if (indices[i] < grupos[i].size) {
+                    resultado.add(grupos[i][indices[i]])
+                    indices[i]++
+                    restantes--
+                }
+            }
+        }
+        return resultado
+    }
+
+    /**
+     * Ponto de partida (início do dia, em millis) pra continuar agendando automaticamente:
+     * o dia seguinte à última aula já agendada, ou hoje, se não houver nada agendado ainda
+     * (ou se tudo que está agendado já ficou no passado) — assim, aulas novas entram sempre
+     * no fim da fila, sem esbarrar em datas já ocupadas.
+     */
+    fun calcularInicioDaContinuacao(ultimaDataAgendadaMillis: Long?, agoraMillis: Long): Long {
+        val inicioHoje = Calendar.getInstance().apply {
+            timeInMillis = agoraMillis
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        if (ultimaDataAgendadaMillis == null || ultimaDataAgendadaMillis < inicioHoje) return inicioHoje
+        return Calendar.getInstance().apply {
+            timeInMillis = ultimaDataAgendadaMillis
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
+    /**
+     * Gera [quantidadeTotal] horários (em millis) pro agendamento automático: [aulasPorDia]
+     * aulas em cada dia válido, usando [horariosMinutosDoDia] (minutos desde meia-noite —
+     * precisa ter exatamente [aulasPorDia] valores, um por posição do dia) — pulando sábado
+     * e/ou domingo conforme [incluirSabado]/[incluirDomingo]. Validado com testes fartos:
+     * nunca gera dois horários iguais (mesmo quando o dia inicial cai num dia excluído) e
+     * sempre devolve a quantidade pedida em ordem crescente.
+     */
+    fun calcularSlotsAutomaticos(
+        dataInicialMillis: Long,
+        quantidadeTotal: Int,
+        aulasPorDia: Int,
+        horariosMinutosDoDia: List<Int>,
+        incluirSabado: Boolean,
+        incluirDomingo: Boolean
+    ): List<Long> {
+        if (quantidadeTotal <= 0 || aulasPorDia <= 0 || horariosMinutosDoDia.isEmpty()) return emptyList()
+        val resultado = mutableListOf<Long>()
+        val diaBase = Calendar.getInstance().apply {
+            timeInMillis = dataInicialMillis
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        while (resultado.size < quantidadeTotal) {
+            val diaDaSemana = diaBase.get(Calendar.DAY_OF_WEEK)
+            val diaValido = when (diaDaSemana) {
+                Calendar.SATURDAY -> incluirSabado
+                Calendar.SUNDAY -> incluirDomingo
+                else -> true
+            }
+            if (diaValido) {
+                for (indiceSlot in 0 until aulasPorDia) {
+                    if (resultado.size >= quantidadeTotal) break
+                    val minutos = horariosMinutosDoDia[indiceSlot % horariosMinutosDoDia.size]
+                    val slot = Calendar.getInstance().apply {
+                        timeInMillis = diaBase.timeInMillis
+                        add(Calendar.MINUTE, minutos)
+                    }.timeInMillis
+                    resultado.add(slot)
+                }
+            }
+            diaBase.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return resultado
+    }
 }

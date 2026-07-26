@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -26,13 +27,16 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -221,6 +225,8 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                 }
             }
 
+            item { SecaoAgendamentoAutomatico(viewModel) }
+
             item { SecaoExportar(viewModel) }
 
             item {
@@ -232,6 +238,144 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val config by viewModel.configuracaoAutomatica.collectAsState()
+    var mostrarConfirmacaoRefazer by remember { mutableStateOf(false) }
+    var mensagemResultado by remember { mutableStateOf<String?>(null) }
+
+    SecaoConfiguracao(titulo = "Agendamento automático", icone = Icons.Filled.AutoAwesome) {
+        Text(
+            "Agenda sozinho todas as aulas que ainda não têm data, misturando todas as " +
+                "matérias em rodízio — uma de cada vez, na ordem de cada uma.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Text(
+            "Aulas por dia",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            (1..5).forEach { quantidade ->
+                FilterChip(
+                    selected = config.aulasPorDia == quantidade,
+                    onClick = {
+                        // Ajusta a lista de horários pro novo tamanho: mantém os já
+                        // escolhidos e completa o resto com um horário padrão (19h) — nunca
+                        // deixa o tamanho da lista descasar de aulasPorDia.
+                        val novosHorarios = (0 until quantidade).map { indice ->
+                            config.horariosMinutos.getOrElse(indice) { 19 * 60 }
+                        }
+                        viewModel.definirConfiguracaoAutomatica(
+                            config.copy(aulasPorDia = quantidade, horariosMinutos = novosHorarios)
+                        )
+                    },
+                    label = { Text("$quantidade") }
+                )
+            }
+        }
+
+        Text(
+            "Horários",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            config.horariosMinutos.forEachIndexed { indice, minutos ->
+                OutlinedButton(onClick = {
+                    com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeHora(context, minutos) { novoMinuto ->
+                        val novaLista = config.horariosMinutos.toMutableList().apply { set(indice, novoMinuto) }
+                        viewModel.definirConfiguracaoAutomatica(config.copy(horariosMinutos = novaLista))
+                    }
+                }) {
+                    Text(com.pedrogavazzi.controleestudos.ui.components.formatarMinutosComoHora(minutos))
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = config.incluirSabado,
+                onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirSabado = it)) }
+            )
+            Text("Incluir sábado")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = config.incluirDomingo,
+                onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirDomingo = it)) }
+            )
+            Text("Incluir domingo")
+        }
+
+        Button(
+            onClick = {
+                viewModel.agendarAutomaticamente { quantidade ->
+                    mensagemResultado = if (quantidade > 0) {
+                        "$quantidade aula(s) agendada(s)."
+                    } else {
+                        "Não havia aulas pendentes para agendar."
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+        ) { Text("Agendar aulas pendentes agora") }
+
+        OutlinedButton(
+            onClick = { mostrarConfirmacaoRefazer = true },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) { Text("Refazer todo o agendamento") }
+
+        mensagemResultado?.let { mensagem ->
+            Text(
+                mensagem,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+
+    if (mostrarConfirmacaoRefazer) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoRefazer = false },
+            title = { Text("Refazer todo o agendamento?") },
+            text = {
+                Text(
+                    "Isso vai apagar a data de TODAS as aulas não concluídas — mesmo as que já " +
+                        "têm data marcada — e reorganizar tudo de novo, a partir de hoje. Aulas " +
+                        "já concluídas não são afetadas. Essa ação não pode ser desfeita."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    mostrarConfirmacaoRefazer = false
+                    viewModel.refazerAgendamentoAutomatico { quantidade ->
+                        mensagemResultado = "$quantidade aula(s) reorganizada(s)."
+                    }
+                }) { Text("Refazer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoRefazer = false }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

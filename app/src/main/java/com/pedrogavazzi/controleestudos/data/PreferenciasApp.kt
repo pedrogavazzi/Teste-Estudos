@@ -86,6 +86,47 @@ class PreferenciasApp(context: Context) {
         prefs.edit().putInt(CHAVE_ANTECEDENCIA, minutos).apply()
     }
 
+    // Configuração do agendamento automático: quantas aulas por dia, em quais horários (um
+    // por posição do dia — precisa ter sempre o mesmo tamanho de aulasPorDia, por isso os
+    // quatro valores são lidos/gravados juntos, nunca separados) e se inclui sábado/domingo.
+    // Padrão: 1 aula por dia, às 19h, sem fim de semana — um ponto de partida razoável que
+    // o aluno é livre pra mudar antes do primeiro uso.
+    private val _configuracaoAutomatica = MutableStateFlow(lerConfiguracaoAutomatica())
+    val configuracaoAutomatica: StateFlow<ConfiguracaoAgendamentoAutomatico> = _configuracaoAutomatica.asStateFlow()
+
+    fun definirConfiguracaoAutomatica(nova: ConfiguracaoAgendamentoAutomatico) {
+        _configuracaoAutomatica.value = nova
+        prefs.edit()
+            .putInt(CHAVE_AUTO_AULAS_POR_DIA, nova.aulasPorDia)
+            .putString(CHAVE_AUTO_HORARIOS, nova.horariosMinutos.joinToString(","))
+            .putBoolean(CHAVE_AUTO_SABADO, nova.incluirSabado)
+            .putBoolean(CHAVE_AUTO_DOMINGO, nova.incluirDomingo)
+            .apply()
+    }
+
+    private fun lerConfiguracaoAutomatica(): ConfiguracaoAgendamentoAutomatico {
+        val aulasPorDia = prefs.getInt(CHAVE_AUTO_AULAS_POR_DIA, 1).coerceAtLeast(1)
+        val horariosSalvos = prefs.getString(CHAVE_AUTO_HORARIOS, null)
+            ?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.filter { it in 0..1439 }
+            .orEmpty()
+        // Se o número de horários salvos não bate mais com aulasPorDia (nunca configurado
+        // ainda, ou dado corrompido), preenche com um horário padrão (19h) repetido — a tela
+        // de configuração deixa o aluno ajustar cada um antes de usar de verdade.
+        val horarios = if (horariosSalvos.size == aulasPorDia) {
+            horariosSalvos
+        } else {
+            List(aulasPorDia) { 19 * 60 }
+        }
+        return ConfiguracaoAgendamentoAutomatico(
+            aulasPorDia = aulasPorDia,
+            horariosMinutos = horarios,
+            incluirSabado = prefs.getBoolean(CHAVE_AUTO_SABADO, false),
+            incluirDomingo = prefs.getBoolean(CHAVE_AUTO_DOMINGO, false)
+        )
+    }
+
     private companion object {
         const val NOME_ARQUIVO = "preferencias_app"
         const val CHAVE_TEMA = "tema"
@@ -94,5 +135,21 @@ class PreferenciasApp(context: Context) {
         const val CHAVE_SOM = "som_ativado"
         const val CHAVE_ANTECEDENCIA = "minutos_antecedencia"
         const val CHAVE_ABA_INICIAL = "aba_inicial"
+        const val CHAVE_AUTO_AULAS_POR_DIA = "auto_aulas_por_dia"
+        const val CHAVE_AUTO_HORARIOS = "auto_horarios_minutos"
+        const val CHAVE_AUTO_SABADO = "auto_incluir_sabado"
+        const val CHAVE_AUTO_DOMINGO = "auto_incluir_domingo"
     }
 }
+
+/**
+ * Configuração do agendamento automático — [horariosMinutos] tem sempre o mesmo tamanho de
+ * [aulasPorDia] (um horário por posição do dia, em minutos desde meia-noite), pra nunca gerar
+ * dois horários iguais no mesmo dia.
+ */
+data class ConfiguracaoAgendamentoAutomatico(
+    val aulasPorDia: Int,
+    val horariosMinutos: List<Int>,
+    val incluirSabado: Boolean,
+    val incluirDomingo: Boolean
+)

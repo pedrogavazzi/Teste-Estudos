@@ -208,6 +208,63 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         }
     }
 
+    /**
+     * Agenda automaticamente TODAS as aulas ainda sem data (não concluídas) de TODAS as
+     * matérias, misturando-as em rodízio — uma aula de cada matéria por vez, respeitando a
+     * ordem interna (número) de cada uma, então nenhuma matéria fica de fora nem é "engolida"
+     * de uma vez. Continua a partir de onde a agenda já vai (não mexe em nada que já está
+     * marcado) — aulas novas que forem adicionadas depois entram no fim na próxima vez que
+     * essa função rodar. Devolve quantas aulas foram agendadas.
+     */
+    suspend fun agendarAutomaticamente(): Int {
+        val config = preferencias.configuracaoAutomatica.value
+        val todasAulas = aulaDao.buscarTodasSuspend()
+        val materias = materiaDao.buscarTodasSuspend()
+
+        val aulasPorMateria = materias
+            .sortedBy { it.nome.lowercase() }
+            .map { materia ->
+                todasAulas
+                    .filter { it.materiaId == materia.id && it.dataHoraMillis == null && !it.concluida }
+                    .sortedBy { it.numero }
+            }
+        val ordemMisturada = AgendamentoUtil.misturarRoundRobin(aulasPorMateria)
+        if (ordemMisturada.isEmpty()) return 0
+
+        val ultimaDataAgendada = todasAulas.mapNotNull { it.dataHoraMillis }.maxOrNull()
+        val inicio = AgendamentoUtil.calcularInicioDaContinuacao(ultimaDataAgendada, System.currentTimeMillis())
+        val slots = AgendamentoUtil.calcularSlotsAutomaticos(
+            dataInicialMillis = inicio,
+            quantidadeTotal = ordemMisturada.size,
+            aulasPorDia = config.aulasPorDia,
+            horariosMinutosDoDia = config.horariosMinutos,
+            incluirSabado = config.incluirSabado,
+            incluirDomingo = config.incluirDomingo
+        )
+
+        ordemMisturada.zip(slots).forEach { (aula, dataHoraMillis) ->
+            val atualizada = aula.copy(dataHoraMillis = dataHoraMillis)
+            aulaDao.atualizar(atualizada)
+            sincronizarAlarme(atualizada)
+        }
+        return ordemMisturada.size
+    }
+
+    /**
+     * Limpa a data de TODAS as aulas não concluídas (agendadas ou não) e roda o agendamento
+     * automático do zero pra elas — pra quando o aluno ficou atrasado ou mudou a configuração
+     * e prefere reorganizar tudo de uma vez, em vez de só continuar de onde parou.
+     */
+    suspend fun refazerAgendamentoAutomatico(): Int {
+        val todasAulas = aulaDao.buscarTodasSuspend()
+        todasAulas.filter { !it.concluida && it.dataHoraMillis != null }.forEach { aula ->
+            val semData = aula.copy(dataHoraMillis = null)
+            aulaDao.atualizar(semData)
+            alarmScheduler.cancelar(semData)
+        }
+        return agendarAutomaticamente()
+    }
+
     suspend fun marcarConclusao(aula: Aula, concluida: Boolean) {
         val atualizada = aula.copy(
             concluida = concluida,
