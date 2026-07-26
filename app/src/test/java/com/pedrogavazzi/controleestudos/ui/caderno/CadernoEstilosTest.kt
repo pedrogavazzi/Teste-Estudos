@@ -106,6 +106,35 @@ class CadernoEstilosTest {
         assertTrue(resultado.none { it.tipo in setOf(TipoEstilo.PEQUENO, TipoEstilo.GRANDE, TipoEstilo.TITULO) })
     }
 
+    @Test
+    fun `limparFormatacao remove todos os tipos sobrepostos no trecho`() {
+        val estilos = listOf(
+            EstiloAplicado(0, 10, TipoEstilo.NEGRITO),
+            EstiloAplicado(5, 15, TipoEstilo.REALCE)
+        )
+        val resultado = limparFormatacao(estilos, 3, 8)
+
+        assertTrue(resultado.contains(EstiloAplicado(0, 3, TipoEstilo.NEGRITO)))
+        assertTrue(resultado.contains(EstiloAplicado(8, 15, TipoEstilo.REALCE)))
+        resultado.forEach { estilo ->
+            assertTrue("sobrou estilo dentro do trecho limpo: $estilo", estilo.inicio >= 8 || estilo.fim <= 3)
+        }
+    }
+
+    @Test
+    fun `limparFormatacao nao mexe em estilos fora do trecho`() {
+        val estilos = listOf(EstiloAplicado(20, 30, TipoEstilo.ITALICO))
+        val resultado = limparFormatacao(estilos, 0, 10)
+        assertEquals(estilos, resultado)
+    }
+
+    @Test
+    fun `limparFormatacao remove tudo quando o trecho cobre todos os estilos`() {
+        val estilos = listOf(EstiloAplicado(0, 5, TipoEstilo.NEGRITO), EstiloAplicado(2, 8, TipoEstilo.TITULO))
+        val resultado = limparFormatacao(estilos, 0, 100)
+        assertTrue(resultado.isEmpty())
+    }
+
     // ---- Modo "apertar a formatação e depois digitar" ----
 
     @Test

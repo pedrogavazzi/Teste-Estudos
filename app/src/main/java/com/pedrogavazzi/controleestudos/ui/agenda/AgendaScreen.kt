@@ -18,7 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -305,8 +305,8 @@ private fun ItemAgenda(
             if (item.aula.link.isNotBlank()) {
                 IconButton(onClick = { abrirLinkDaAula(context, item.aula.link) }) {
                     Icon(
-                        Icons.Filled.OpenInNew,
-                        contentDescription = "Abrir link da aula",
+                        Icons.Filled.Link,
+                        contentDescription = "Abrir link de ${item.aula.nomeExibido()}",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }

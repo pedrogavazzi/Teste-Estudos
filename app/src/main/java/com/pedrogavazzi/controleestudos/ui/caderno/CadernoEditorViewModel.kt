@@ -1,10 +1,13 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pedrogavazzi.controleestudos.data.Aula
+import com.pedrogavazzi.controleestudos.data.FotoAula
 import com.pedrogavazzi.controleestudos.data.Materia
 import com.pedrogavazzi.controleestudos.data.StudyRepository
+import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -32,6 +35,12 @@ class CadernoEditorViewModel(
             initialValue = EstadoCadernoEditor()
         )
 
+    val fotos: StateFlow<List<FotoAula>> = repository.observarFotosDaAula(aulaId).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     fun salvarAnotacoes(aula: Aula, anotacoesSerializadas: String) {
         viewModelScope.launch { repository.salvarAnotacaoCaderno(aula, anotacoesSerializadas) }
     }
@@ -39,4 +48,20 @@ class CadernoEditorViewModel(
     fun marcarConclusao(aula: Aula, concluida: Boolean) {
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
     }
+
+    fun salvarLink(aula: Aula, link: String) {
+        viewModelScope.launch { repository.salvarLink(aula, link) }
+    }
+
+    fun adicionarFotos(aulaId: Long, uris: List<Uri>) {
+        viewModelScope.launch {
+            uris.forEach { uri -> repository.adicionarFoto(aulaId, uri) }
+        }
+    }
+
+    fun excluirFoto(foto: FotoAula) {
+        viewModelScope.launch { repository.excluirFoto(foto) }
+    }
+
+    fun arquivoDaFoto(foto: FotoAula): File = repository.arquivoDaFoto(foto)
 }

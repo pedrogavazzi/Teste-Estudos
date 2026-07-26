@@ -78,6 +78,27 @@ fun aplicarTamanho(estilos: List<EstiloAplicado>, tipo: TipoEstilo?, inicio: Int
 }
 
 /**
+ * Remove TODOS os estilos (negrito, itálico, realce e tamanho, juntos) do trecho
+ * [inicio, fim) — "borracha de formatação", útil quando o trecho acumulou formatações
+ * demais e é mais fácil recomeçar do zero do que desligar uma por uma. Um estilo que só
+ * encosta na borda do trecho (sem entrar nele) não é afetado.
+ */
+fun limparFormatacao(estilos: List<EstiloAplicado>, inicio: Int, fim: Int): List<EstiloAplicado> {
+    if (inicio >= fim) return estilos
+    val resultado = mutableListOf<EstiloAplicado>()
+    for (estilo in estilos) {
+        if (estilo.fim <= inicio || estilo.inicio >= fim) {
+            resultado.add(estilo)
+            continue
+        }
+        if (estilo.inicio < inicio) resultado.add(estilo.copy(fim = inicio))
+        if (estilo.fim > fim) resultado.add(estilo.copy(inicio = fim))
+        // a parte de dentro de [inicio, fim) é descartada, seja qual for o tipo do estilo.
+    }
+    return resultado
+}
+
+/**
  * CORREÇÃO DO BUG CRÍTICO: quando o texto do caderno é editado (digitar ou apagar caracteres),
  * as posições dos estilos já aplicados precisam se mover junto — senão a formatação "escorrega"
  * para um trecho diferente do texto. Compara [textoAntigo] com [textoNovo] pelo prefixo/sufixo

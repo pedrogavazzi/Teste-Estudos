@@ -84,6 +84,10 @@ dependencies {
 
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // Carregamento de miniaturas das fotos da aula — evita ter que decodificar/cachear
+    // bitmap na mão (risco real de estourar memória se feito sem cuidado).
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")

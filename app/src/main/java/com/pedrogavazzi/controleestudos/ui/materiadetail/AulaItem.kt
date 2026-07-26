@@ -13,12 +13,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -95,18 +94,6 @@ fun AulaItem(
                 )
                 Spacer(Modifier.padding(start = 4.dp))
                 StatusChip(status, modifier = Modifier.padding(top = 8.dp))
-                if (aula.link.isNotBlank()) {
-                    IconButton(
-                        onClick = { abrirLinkDaAula(context, aula.link) },
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.OpenInNew,
-                            contentDescription = "Abrir link da aula",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
             }
 
             Row(
@@ -125,6 +112,14 @@ fun AulaItem(
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     Text("Excluir", color = MaterialTheme.colorScheme.error)
+                }
+                // Rótulo com texto, não só ícone — pra ficar claro que é o link desta aula
+                // específica, sem precisar adivinhar a partir de um ícone genérico sozinho.
+                if (aula.link.isNotBlank()) {
+                    TextButton(onClick = { abrirLinkDaAula(context, aula.link) }) {
+                        Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
+                        Text("Abrir link")
+                    }
                 }
             }
 
@@ -234,15 +229,6 @@ fun AulaItem(
                         rotulo = "Link da aula (opcional)",
                         minLinhas = 1
                     )
-                    if (aula.link.isNotBlank()) {
-                        TextButton(
-                            onClick = { abrirLinkDaAula(context, aula.link) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                            Text("Abrir link")
-                        }
-                    }
 
                     Spacer(Modifier.padding(top = 8.dp))
                     com.pedrogavazzi.controleestudos.ui.caderno.PreviaDoCaderno(

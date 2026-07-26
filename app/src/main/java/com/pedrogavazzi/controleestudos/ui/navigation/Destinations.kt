@@ -28,7 +28,9 @@ val itensNavegacaoInferior = listOf(
     ItemNavegacao(Destino.Materias, "Matérias", Icons.Filled.MenuBook),
     ItemNavegacao(Destino.Agenda, "Agenda", Icons.Filled.CalendarMonth),
     ItemNavegacao(Destino.Caderno, "Caderno", Icons.Filled.EditNote),
-    ItemNavegacao(Destino.Desempenho, "Desempenho", Icons.Filled.BarChart),
+    // "Desempenho" continuava cortando na barra mesmo com fonte reduzida — o rótulo aqui é
+    // só o da barra de baixo; o nome da tela em si continua "Desempenho" em todo o resto do app.
+    ItemNavegacao(Destino.Desempenho, "Painel", Icons.Filled.BarChart),
     ItemNavegacao(Destino.Configuracoes, "Ajustes", Icons.Filled.Settings)
 )
 

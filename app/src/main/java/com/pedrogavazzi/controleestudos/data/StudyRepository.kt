@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.Flow
  */
 class StudyRepository(context: Context, private val preferencias: PreferenciasApp) {
 
+    private val appContext = context.applicationContext
     private val db = AppDatabase.getInstance(context)
     private val materiaDao = db.materiaDao()
     private val aulaDao = db.aulaDao()
+    private val fotoAulaDao = db.fotoAulaDao()
     private val alarmScheduler = AlarmScheduler(context)
 
     // ---------- Matérias ----------
@@ -72,9 +74,41 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
             aula.anotacoesCaderno.isNotBlank() || aula.concluida || aula.nomePersonalizado != null
 
     suspend fun excluirMateria(materia: Materia) {
-        aulaDao.buscarTodasDaMateriaSuspend(materia.id).forEach { alarmScheduler.cancelar(it) }
+        val aulas = aulaDao.buscarTodasDaMateriaSuspend(materia.id)
+        aulas.forEach { aula ->
+            alarmScheduler.cancelar(aula)
+            // Apaga os arquivos de foto no disco antes de perder a referência a eles —
+            // essa é a única exclusão "definitiva" (sem desfazer), então é seguro limpar
+            // tudo de vez.
+            fotoAulaDao.buscarFotosDaAulaSuspend(aula.id).forEach { foto ->
+                ArmazenamentoFotos.excluirArquivo(appContext, foto.nomeArquivo)
+            }
+            fotoAulaDao.excluirTodasDaAula(aula.id)
+        }
         materiaDao.excluir(materia)
     }
+
+    // ---------- Fotos da aula ----------
+
+    fun observarFotosDaAula(aulaId: Long): Flow<List<FotoAula>> = fotoAulaDao.observarFotosDaAula(aulaId)
+
+    /** Adiciona uma foto/print à aula — a imagem é copiada (reduzida) pro armazenamento
+     *  local do app; [uriOrigem] pode ser descartada pelo chamador depois. */
+    suspend fun adicionarFoto(aulaId: Long, uriOrigem: android.net.Uri) {
+        val nomeArquivo = ArmazenamentoFotos.copiarReduzindoParaArmazenamentoLocal(appContext, uriOrigem)
+        if (nomeArquivo != null) {
+            fotoAulaDao.inserir(FotoAula(aulaId = aulaId, nomeArquivo = nomeArquivo))
+        }
+    }
+
+    /** Remove uma foto — some tanto do banco quanto do arquivo no disco (exclusão direta,
+     *  sem desfazer, já que é só uma imagem e o usuário pode adicionar de novo se precisar). */
+    suspend fun excluirFoto(foto: FotoAula) {
+        fotoAulaDao.excluir(foto)
+        ArmazenamentoFotos.excluirArquivo(appContext, foto.nomeArquivo)
+    }
+
+    fun arquivoDaFoto(foto: FotoAula): java.io.File = ArmazenamentoFotos.arquivoPara(appContext, foto.nomeArquivo)
 
     /** Busca todas as matérias com suas aulas de uma vez, para exportar um resumo em texto. */
     suspend fun buscarTudoParaExportacao(): List<Pair<Materia, List<Aula>>> {

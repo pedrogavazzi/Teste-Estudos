@@ -1,23 +1,31 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatColorFill
+import androidx.compose.material.icons.filled.FormatClear
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Visibility
@@ -43,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -59,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import com.pedrogavazzi.controleestudos.data.nomeExibido
 import com.pedrogavazzi.controleestudos.ui.components.CaixaConclusao
 import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
+import com.pedrogavazzi.controleestudos.ui.components.abrirLinkDaAula
 import com.pedrogavazzi.controleestudos.ui.components.formatarDataHora
 import kotlinx.coroutines.delay
 
@@ -87,6 +97,13 @@ fun CadernoEditorScreen(
 ) {
     val estado by viewModel.estado.collectAsState()
     val aula = estado.aula
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val fotos by viewModel.fotos.collectAsState()
+    val seletorDeFotos = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(20)
+    ) { uris ->
+        if (uris.isNotEmpty()) viewModel.adicionarFotos(aulaId, uris)
+    }
 
     var campo by remember { mutableStateOf(TextFieldValue("")) }
     var estilos by remember { mutableStateOf(listOf<EstiloAplicado>()) }
@@ -130,6 +147,9 @@ fun CadernoEditorScreen(
 
     val alterado = campo.text != textoOriginal || estilos != estilosOriginais
     val aparenciaCaderno = aparenciaCadernoDoTema()
+    val contagemPalavras = remember(campo.text) {
+        campo.text.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+    }
 
     fun aplicarEstilo(tipo: TipoEstilo) {
         val selecao = campo.selection
@@ -236,9 +256,18 @@ fun CadernoEditorScreen(
                         negritoAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.NEGRITO, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.NEGRITO in estilosPendentes,
                         italicoAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.ITALICO, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.ITALICO in estilosPendentes,
                         realceAtivo = if (!selecaoAtual.collapsed) trechoTemEstilo(estilos, TipoEstilo.REALCE, selecaoAtual.min, selecaoAtual.max) else TipoEstilo.REALCE in estilosPendentes,
+                        contagemPalavras = contagemPalavras,
                         onNegritoClick = { aplicarEstilo(TipoEstilo.NEGRITO) },
                         onItalicoClick = { aplicarEstilo(TipoEstilo.ITALICO) },
                         onRealceClick = { aplicarEstilo(TipoEstilo.REALCE) },
+                        onLimparFormatacao = {
+                            if (!selecaoAtual.collapsed) {
+                                estilos = limparFormatacao(estilos, selecaoAtual.min, selecaoAtual.max)
+                            } else {
+                                estilosPendentes = emptySet()
+                                tamanhoPendente = null
+                            }
+                        },
                         onTamanhoSelecionado = { tamanho -> aplicarTamanhoSelecao(tamanho) }
                     )
                     Surface(shadowElevation = 8.dp) {
@@ -267,7 +296,7 @@ fun CadernoEditorScreen(
                     .padding(padding)
                     .padding(16.dp)
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(20.dp)
@@ -278,6 +307,34 @@ fun CadernoEditorScreen(
                     // e o teclado continuam fechando normalmente ao sair da tela ou apertar
                     // voltar, sem precisar de um gesto customizado concorrendo com o do campo.
                 ) {
+                    // Link da aula fica no topo do próprio documento (como metadado da nota),
+                    // acessível e editável direto do caderno — antes só dava pra ver/editar
+                    // pela tela da matéria.
+                    if (aula.link.isNotBlank() || !modoLeitura) {
+                        LinkDoCaderno(
+                            link = aula.link,
+                            somenteLeitura = modoLeitura,
+                            onAbrir = { abrirLinkDaAula(context, aula.link) },
+                            onSalvar = { novoLink -> viewModel.salvarLink(aula, novoLink) }
+                        )
+                        Spacer(Modifier.padding(top = 12.dp))
+                    }
+                    if (fotos.isNotEmpty() || !modoLeitura) {
+                        SecaoFotos(
+                            fotos = fotos,
+                            somenteLeitura = modoLeitura,
+                            arquivoDaFoto = { foto -> viewModel.arquivoDaFoto(foto) },
+                            onAdicionar = {
+                                seletorDeFotos.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            },
+                            onRemover = { foto -> viewModel.excluirFoto(foto) }
+                        )
+                        Spacer(Modifier.padding(top = 12.dp))
+                    }
                     BasicTextField(
                         value = campo,
                         onValueChange = { novoValor ->
@@ -371,15 +428,194 @@ private fun construirAnnotatedString(
     }
 }
 
+/**
+ * Link da aula, exibido/editável no topo do próprio documento do caderno. Em modo leitura,
+ * só aparece (e é clicável) quando já existe um link; em edição, reaproveita o
+ * [AnotacaoEditor] já usado para a observação — mesmo comportamento de salvar ao perder o
+ * foco, sem precisar escrever essa lógica de novo.
+ */
+@Composable
+private fun LinkDoCaderno(
+    link: String,
+    somenteLeitura: Boolean,
+    onAbrir: () -> Unit,
+    onSalvar: (String) -> Unit
+) {
+    if (somenteLeitura) {
+        if (link.isNotBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onAbrir),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Link,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    link,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
+        }
+        return
+    }
+
+    Column {
+        com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor(
+            chaveDeIdentidade = "link",
+            valorSalvo = link,
+            onSalvar = onSalvar,
+            rotulo = "Link da aula (opcional)",
+            minLinhas = 1
+        )
+        if (link.isNotBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clickable(onClick = onAbrir),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Link,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    "Abrir link",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Fotos/prints anexados à aula — miniaturas numa fileira rolável, sem se misturar com o
+ * texto (o campo de edição não suporta imagem fluindo junto do texto). Tocar numa miniatura
+ * abre ela maior; segurar não faz nada de propósito — a exclusão usa um "x" visível em vez
+ * de gesto escondido, mais fácil de descobrir.
+ */
+@Composable
+private fun SecaoFotos(
+    fotos: List<FotoAula>,
+    somenteLeitura: Boolean,
+    arquivoDaFoto: (FotoAula) -> java.io.File,
+    onAdicionar: () -> Unit,
+    onRemover: (FotoAula) -> Unit
+) {
+    var fotoEmVisualizacao by remember { mutableStateOf<FotoAula?>(null) }
+
+    Column {
+        Text(
+            "Fotos",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 6.dp)
+        ) {
+            items(fotos, key = { it.id }) { foto ->
+                Box(modifier = Modifier.size(88.dp)) {
+                    coil.compose.AsyncImage(
+                        model = arquivoDaFoto(foto),
+                        contentDescription = "Foto anexada à aula",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .clickable { fotoEmVisualizacao = foto }
+                    )
+                    if (!somenteLeitura) {
+                        androidx.compose.material3.Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(2.dp)
+                                .size(22.dp)
+                                .clickable { onRemover(foto) }
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Remover esta foto",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(3.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            if (!somenteLeitura) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(onClick = onAdicionar),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.AddAPhoto,
+                            contentDescription = "Adicionar fotos",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    val fotoAtual = fotoEmVisualizacao
+    if (fotoAtual != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { fotoEmVisualizacao = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { fotoEmVisualizacao = null },
+                contentAlignment = Alignment.Center
+            ) {
+                coil.compose.AsyncImage(
+                    model = arquivoDaFoto(fotoAtual),
+                    contentDescription = "Foto anexada à aula, ampliada",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                IconButton(
+                    onClick = { fotoEmVisualizacao = null },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = "Fechar", tint = Color.White)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun BarraDeFormatacao(
     temSelecao: Boolean,
     negritoAtivo: Boolean,
     italicoAtivo: Boolean,
     realceAtivo: Boolean,
+    contagemPalavras: Int,
     onNegritoClick: () -> Unit,
     onItalicoClick: () -> Unit,
     onRealceClick: () -> Unit,
+    onLimparFormatacao: () -> Unit,
     onTamanhoSelecionado: (TipoEstilo?) -> Unit
 ) {
     var menuTamanhoAberto by remember { mutableStateOf(false) }
@@ -433,14 +669,27 @@ private fun BarraDeFormatacao(
                         }
                     }
                 }
+                IconButton(onClick = onLimparFormatacao) {
+                    Icon(Icons.Filled.FormatClear, contentDescription = "Limpar formatação")
+                }
             }
-            Text(
-                if (temSelecao) "Formata o trecho selecionado"
-                else "Sem seleção: toque num botão pra formatar o que for digitado a seguir",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (temSelecao) "Formata o trecho selecionado"
+                    else "Sem seleção: toque num botão pra formatar o que for digitado a seguir",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    if (contagemPalavras == 1) "1 palavra" else "$contagemPalavras palavras",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
