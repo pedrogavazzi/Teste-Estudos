@@ -11,7 +11,7 @@ enum class TemaApp { CLARO, ESCURO, SISTEMA }
 /** Qual aba abre primeiro quando o app é iniciado. Fica no modelo de dados (não na camada de
  *  navegação) de propósito, pra essa preferência não depender de nada da UI — quem traduz isso
  *  pra uma rota de navegação é a própria tela de navegação, não este arquivo. */
-enum class AbaInicial { MATERIAS, AGENDA, CADERNO, DESEMPENHO }
+enum class AbaInicial { MATERIAS, AGENDA, CADERNO, FAVORITOS }
 
 /** Opções de antecedência do alerta, em minutos antes do horário agendado da aula. */
 val OPCOES_ANTECEDENCIA_MINUTOS = listOf(0, 5, 10, 15, 30, 45, 60)

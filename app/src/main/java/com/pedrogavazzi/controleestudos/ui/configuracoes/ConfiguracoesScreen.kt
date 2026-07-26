@@ -110,9 +110,9 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
                             label = { Text("Caderno") }
                         )
                         FilterChip(
-                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO,
-                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO) },
-                            label = { Text("Desempenho") }
+                            selected = abaInicial == com.pedrogavazzi.controleestudos.data.AbaInicial.FAVORITOS,
+                            onClick = { viewModel.definirAbaInicial(com.pedrogavazzi.controleestudos.data.AbaInicial.FAVORITOS) },
+                            label = { Text("Favoritos") }
                         )
                     }
                 }

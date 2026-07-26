@@ -14,10 +14,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -58,6 +61,7 @@ fun AulaItem(
     onMarcarConclusao: (Boolean) -> Unit,
     onSalvarObservacao: (String) -> Unit,
     onSalvarLink: (String) -> Unit,
+    onAlterarFavorita: (Boolean) -> Unit,
     onAbrirCaderno: () -> Unit,
     onRenomear: (String?) -> Unit,
     onExcluir: () -> Unit,
@@ -93,6 +97,16 @@ fun AulaItem(
                     modifier = Modifier.weight(1f).padding(top = 12.dp)
                 )
                 Spacer(Modifier.padding(start = 4.dp))
+                IconButton(
+                    onClick = { onAlterarFavorita(!aula.favorita) },
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Icon(
+                        if (aula.favorita) Icons.Filled.Star else Icons.Filled.StarBorder,
+                        contentDescription = if (aula.favorita) "Remover dos favoritos" else "Marcar como favorita",
+                        tint = if (aula.favorita) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    )
+                }
                 StatusChip(status, modifier = Modifier.padding(top = 8.dp))
             }
 

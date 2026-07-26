@@ -1,18 +1,18 @@
 package com.pedrogavazzi.controleestudos.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Destino(val rota: String) {
     data object Materias : Destino("materias")
     data object Agenda : Destino("agenda")
     data object Caderno : Destino("caderno")
-    data object Desempenho : Destino("desempenho")
+    data object Favoritos : Destino("favoritos")
     data object Configuracoes : Destino("configuracoes")
     data object MateriaDetail : Destino("materia/{materiaId}") {
         fun rotaComId(materiaId: Long) = "materia/$materiaId"
@@ -28,9 +28,7 @@ val itensNavegacaoInferior = listOf(
     ItemNavegacao(Destino.Materias, "Matérias", Icons.Filled.MenuBook),
     ItemNavegacao(Destino.Agenda, "Agenda", Icons.Filled.CalendarMonth),
     ItemNavegacao(Destino.Caderno, "Caderno", Icons.Filled.EditNote),
-    // "Desempenho" continuava cortando na barra mesmo com fonte reduzida — o rótulo aqui é
-    // só o da barra de baixo; o nome da tela em si continua "Desempenho" em todo o resto do app.
-    ItemNavegacao(Destino.Desempenho, "Painel", Icons.Filled.BarChart),
+    ItemNavegacao(Destino.Favoritos, "Favoritos", Icons.Filled.Star),
     ItemNavegacao(Destino.Configuracoes, "Ajustes", Icons.Filled.Settings)
 )
 
@@ -41,5 +39,5 @@ fun rotaInicialPara(abaInicial: com.pedrogavazzi.controleestudos.data.AbaInicial
     com.pedrogavazzi.controleestudos.data.AbaInicial.MATERIAS -> Destino.Materias.rota
     com.pedrogavazzi.controleestudos.data.AbaInicial.AGENDA -> Destino.Agenda.rota
     com.pedrogavazzi.controleestudos.data.AbaInicial.CADERNO -> Destino.Caderno.rota
-    com.pedrogavazzi.controleestudos.data.AbaInicial.DESEMPENHO -> Destino.Desempenho.rota
+    com.pedrogavazzi.controleestudos.data.AbaInicial.FAVORITOS -> Destino.Favoritos.rota
 }

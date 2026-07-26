@@ -93,4 +93,8 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
     fun agendarAula(aula: Aula, novaDataHoraMillis: Long) {
         viewModelScope.launch { repository.agendarAula(aula, novaDataHoraMillis) }
     }
+
+    fun salvarLink(aula: Aula, link: String) {
+        viewModelScope.launch { repository.salvarLink(aula, link) }
+    }
 }

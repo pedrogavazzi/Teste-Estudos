@@ -27,7 +27,7 @@ private fun DialogoConfirmarDesmarcar(onConfirmar: () -> Unit, onCancelar: () ->
     AlertDialog(
         onDismissRequest = onCancelar,
         title = { Text("Desmarcar como concluída?") },
-        text = { Text("Essa aula volta a aparecer como pendente na agenda e no desempenho.") },
+        text = { Text("Essa aula volta a aparecer como pendente na agenda.") },
         confirmButton = { TextButton(onClick = onConfirmar) { Text("Desmarcar") } },
         dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } }
     )

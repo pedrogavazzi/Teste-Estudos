@@ -87,6 +87,10 @@ class MateriaDetailViewModel(
         viewModelScope.launch { repository.salvarLink(aula, link) }
     }
 
+    fun alterarFavorita(aula: Aula, favorita: Boolean) {
+        viewModelScope.launch { repository.definirFavorita(aula, favorita) }
+    }
+
     fun salvarAnotacaoCaderno(aula: Aula, anotacoes: String) {
         viewModelScope.launch { repository.salvarAnotacaoCaderno(aula, anotacoes) }
     }

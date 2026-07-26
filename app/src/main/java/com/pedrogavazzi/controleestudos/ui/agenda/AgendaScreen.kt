@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Card
@@ -218,7 +219,8 @@ fun AgendaScreen(
                                                 viewModel.agendarAula(item.aula, novaData)
                                             }
                                         }
-                                    }
+                                    },
+                                    onSalvarLink = { link -> viewModel.salvarLink(item.aula, link) }
                                 )
                             }
                         }
@@ -253,12 +255,14 @@ private fun ItemAgenda(
     destaque: Boolean,
     onAbrirCaderno: () -> Unit,
     onMarcarConclusao: (Boolean) -> Unit,
-    onAlterarData: () -> Unit
+    onAlterarData: () -> Unit,
+    onSalvarLink: (String) -> Unit
 ) {
     val context = LocalContext.current
     val status = item.aula.statusAtual()
     val cor = runCatching { Color(android.graphics.Color.parseColor(item.corHex)) }
         .getOrDefault(MaterialTheme.colorScheme.primary)
+    var mostrarDialogoLink by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onAbrirCaderno),
@@ -296,6 +300,17 @@ private fun ItemAgenda(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
+            } else {
+                // Sem link ainda: em vez de mandar pra tela da matéria só pra colar um link,
+                // deixa preencher direto daqui — é bem comum descobrir o link da aula (ex.:
+                // convite de videochamada) já olhando a agenda.
+                IconButton(onClick = { mostrarDialogoLink = true }) {
+                    Icon(
+                        Icons.Filled.AddLink,
+                        contentDescription = "Adicionar link de ${item.aula.nomeExibido()}",
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
             StatusChip(status, modifier = Modifier.padding(end = 8.dp))
             IconButton(onClick = onAlterarData) {
@@ -307,6 +322,45 @@ private fun ItemAgenda(
             CaixaConclusao(concluida = item.aula.concluida, onAlterar = onMarcarConclusao)
         }
     }
+
+    if (mostrarDialogoLink) {
+        DialogoPreencherLink(
+            valorInicial = item.aula.link,
+            onConfirmar = { novoLink ->
+                onSalvarLink(novoLink)
+                mostrarDialogoLink = false
+            },
+            onCancelar = { mostrarDialogoLink = false }
+        )
+    }
+}
+
+@Composable
+private fun DialogoPreencherLink(
+    valorInicial: String,
+    onConfirmar: (String) -> Unit,
+    onCancelar: () -> Unit
+) {
+    var texto by remember { mutableStateOf(valorInicial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onCancelar,
+        title = { Text("Link da aula") },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = texto,
+                onValueChange = { texto = it },
+                placeholder = { Text("Videochamada, gravação, material...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onConfirmar(texto.trim()) }) { Text("Salvar") }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onCancelar) { Text("Cancelar") }
+        }
+    )
 }
 
 @Composable

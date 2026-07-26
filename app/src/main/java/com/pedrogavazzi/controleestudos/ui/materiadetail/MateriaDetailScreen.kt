@@ -185,6 +185,7 @@ fun MateriaDetailScreen(
                     onMarcarConclusao = { concluida -> viewModel.marcarConclusao(aula, concluida) },
                     onSalvarObservacao = { texto -> viewModel.salvarObservacao(aula, texto) },
                     onSalvarLink = { link -> viewModel.salvarLink(aula, link) },
+                    onAlterarFavorita = { favorita -> viewModel.alterarFavorita(aula, favorita) },
                     onAbrirCaderno = { onAbrirCadernoDaAula(aula.id) },
                     onRenomear = { novoNome -> viewModel.renomearAula(aula, novoNome) },
                     onExcluir = {

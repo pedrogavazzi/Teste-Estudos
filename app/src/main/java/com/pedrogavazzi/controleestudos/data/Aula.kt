@@ -56,7 +56,9 @@ data class Aula(
     val nomePersonalizado: String? = null,
     /** Link opcional da aula (ex.: videochamada, gravação, material) — aberto no navegador
      *  ou app correspondente ao tocar. */
-    val link: String = ""
+    val link: String = "",
+    /** Marcada pelo aluno para revisão rápida depois — aparece na aba Favoritos. */
+    val favorita: Boolean = false
 )
 
 /** Nome exibido da aula: o personalizado, se definido, senão o padrão numerado "Aula N". */

@@ -235,6 +235,11 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         aulaDao.atualizar(aula.copy(link = link))
     }
 
+    /** Marca ou desmarca uma aula como favorita, pra revisão rápida na aba Favoritos. */
+    suspend fun definirFavorita(aula: Aula, favorita: Boolean) {
+        aulaDao.atualizar(aula.copy(favorita = favorita))
+    }
+
     suspend fun excluirAula(aula: Aula) {
         alarmScheduler.cancelar(aula)
         aulaDao.excluir(aula)

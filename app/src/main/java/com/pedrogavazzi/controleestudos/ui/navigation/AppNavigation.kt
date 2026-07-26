@@ -29,8 +29,8 @@ import com.pedrogavazzi.controleestudos.ui.caderno.CadernoScreen
 import com.pedrogavazzi.controleestudos.ui.caderno.CadernoViewModel
 import com.pedrogavazzi.controleestudos.ui.configuracoes.ConfiguracoesScreen
 import com.pedrogavazzi.controleestudos.ui.configuracoes.ConfiguracoesViewModel
-import com.pedrogavazzi.controleestudos.ui.desempenho.DesempenhoScreen
-import com.pedrogavazzi.controleestudos.ui.desempenho.DesempenhoViewModel
+import com.pedrogavazzi.controleestudos.ui.favoritos.FavoritosScreen
+import com.pedrogavazzi.controleestudos.ui.favoritos.FavoritosViewModel
 import com.pedrogavazzi.controleestudos.ui.materiadetail.MateriaDetailScreen
 import com.pedrogavazzi.controleestudos.ui.materias.MateriasScreen
 import com.pedrogavazzi.controleestudos.ui.materias.MateriasViewModel
@@ -92,11 +92,11 @@ fun AppNavigation(
                     onIrParaAgenda = { navegarParaAba(navController, Destino.Agenda.rota) }
                 )
             }
-            composable(Destino.Desempenho.rota) {
-                val viewModel: DesempenhoViewModel = viewModel()
-                DesempenhoScreen(
+            composable(Destino.Favoritos.rota) {
+                val viewModel: FavoritosViewModel = viewModel()
+                FavoritosScreen(
                     viewModel = viewModel,
-                    onIrParaMaterias = { navegarParaAba(navController, Destino.Materias.rota) }
+                    onAbrirCaderno = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) }
                 )
             }
             composable(Destino.Configuracoes.rota) {
@@ -161,7 +161,7 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
 
     val destinosVisiveisComBarra = setOf(
         Destino.Materias.rota, Destino.Agenda.rota, Destino.Caderno.rota,
-        Destino.Desempenho.rota, Destino.Configuracoes.rota
+        Destino.Favoritos.rota, Destino.Configuracoes.rota
     )
     val mostrarBarra = rotaAtual?.hierarchy?.any { it.route in destinosVisiveisComBarra } == true
 
@@ -179,8 +179,8 @@ private fun BarraNavegacaoInferior(navController: NavHostController) {
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             softWrap = false,
-                            // Reduzido de propósito: com 5 abas na barra, o rótulo "Desempenho"
-                            // não cabia no tamanho padrão e cortava no meio ("Desemp...").
+                            // Reduzido de propósito: com 5 abas na barra, rótulos mais longos
+                            // (como "Desempenho" antes) podiam cortar no meio no tamanho padrão.
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp)
                         )
                     }
