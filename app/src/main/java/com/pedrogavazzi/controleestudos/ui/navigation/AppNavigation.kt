@@ -9,9 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,10 +53,6 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
 
-    // Sinal de "ao entrar na Agenda, já mostrar só as atrasadas" — usado quando o usuário toca
-    // no aviso de atrasadas do card de Desempenho, pra levar direto ao que ele quer ver.
-    var disparoMostrarAtrasadas by remember { mutableStateOf(false) }
-
     // Veio de um toque na notificação: abre direto o caderno daquela aula, por cima de
     // qualquer tela em que o app estivesse.
     LaunchedEffect(aulaIdParaAbrirCaderno) {
@@ -88,9 +81,7 @@ fun AppNavigation(
                 val viewModel: AgendaViewModel = viewModel()
                 AgendaScreen(
                     viewModel = viewModel,
-                    onAbrirCaderno = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) },
-                    disparoMostrarSoAtrasadas = disparoMostrarAtrasadas,
-                    onFiltroAtrasadasConsumido = { disparoMostrarAtrasadas = false }
+                    onAbrirCaderno = { aulaId -> navController.navigate(Destino.CadernoEditor.rotaComId(aulaId, somenteLeitura = false)) }
                 )
             }
             composable(Destino.Caderno.rota) {
@@ -105,11 +96,7 @@ fun AppNavigation(
                 val viewModel: DesempenhoViewModel = viewModel()
                 DesempenhoScreen(
                     viewModel = viewModel,
-                    onIrParaMaterias = { navegarParaAba(navController, Destino.Materias.rota) },
-                    onVerAtrasadas = {
-                        disparoMostrarAtrasadas = true
-                        navegarParaAba(navController, Destino.Agenda.rota)
-                    }
+                    onIrParaMaterias = { navegarParaAba(navController, Destino.Materias.rota) }
                 )
             }
             composable(Destino.Configuracoes.rota) {
@@ -157,8 +144,8 @@ fun AppNavigation(
 
 /** Navega para uma aba do menu inferior preservando o estado de rolagem/formulário das
  *  outras abas — mesma lógica usada tanto ao tocar num item do menu quanto ao navegar
- *  programaticamente de uma tela pra outra (ex.: do card de atrasadas no Desempenho pra
- *  Agenda), pra não duplicar essa configuração em mais de um lugar. */
+ *  programaticamente de uma tela pra outra (ex.: do estado vazio de uma aba pra outra),
+ *  pra não duplicar essa configuração em mais de um lugar. */
 private fun navegarParaAba(navController: NavHostController, rota: String) {
     navController.navigate(rota) {
         popUpTo(navController.graph.findStartDestination().id) { saveState = true }

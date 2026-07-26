@@ -309,15 +309,13 @@ fun CadernoEditorScreen(
                     // e o teclado continuam fechando normalmente ao sair da tela ou apertar
                     // voltar, sem precisar de um gesto customizado concorrendo com o do campo.
                 ) {
-                    // Link da aula fica no topo do próprio documento (como metadado da nota),
-                    // acessível e editável direto do caderno — antes só dava pra ver/editar
-                    // pela tela da matéria.
-                    if (aula.link.isNotBlank() || !modoLeitura) {
+                    // Link da aula é só exibido aqui como hiperlink clicável — editar o link
+                    // acontece fora do caderno, na tela da aula (evita ter dois lugares
+                    // diferentes cuidando do mesmo dado).
+                    if (aula.link.isNotBlank()) {
                         LinkDoCaderno(
                             link = aula.link,
-                            somenteLeitura = modoLeitura,
-                            onAbrir = { abrirLinkDaAula(context, aula.link) },
-                            onSalvar = { novoLink -> viewModel.salvarLink(aula, novoLink) }
+                            onAbrir = { abrirLinkDaAula(context, aula.link) }
                         )
                         Spacer(Modifier.padding(top = 12.dp))
                     }
@@ -431,70 +429,31 @@ private fun construirAnnotatedString(
 }
 
 /**
- * Link da aula, exibido/editável no topo do próprio documento do caderno. Em modo leitura,
- * só aparece (e é clicável) quando já existe um link; em edição, reaproveita o
- * [AnotacaoEditor] já usado para a observação — mesmo comportamento de salvar ao perder o
- * foco, sem precisar escrever essa lógica de novo.
+ * O link da aula aparece aqui só como um hiperlink clicável (sublinhado, cor de destaque) —
+ * pra editar o link, é preciso ir até a tela da aula. Ter dois lugares editando o mesmo
+ * campo (aqui e lá) só criaria confusão sobre qual é o "de verdade".
  */
 @Composable
-private fun LinkDoCaderno(
-    link: String,
-    somenteLeitura: Boolean,
-    onAbrir: () -> Unit,
-    onSalvar: (String) -> Unit
-) {
-    if (somenteLeitura) {
-        if (link.isNotBlank()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onAbrir),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.Link,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    link,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 6.dp)
-                )
-            }
-        }
-        return
-    }
-
-    Column {
-        com.pedrogavazzi.controleestudos.ui.components.AnotacaoEditor(
-            chaveDeIdentidade = "link",
-            valorSalvo = link,
-            onSalvar = onSalvar,
-            rotulo = "Link da aula (opcional)",
-            minLinhas = 1
+private fun LinkDoCaderno(link: String, onAbrir: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onAbrir),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Filled.Link,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
         )
-        if (link.isNotBlank()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clickable(onClick = onAbrir),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Filled.Link,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    "Abrir link",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-        }
+        Text(
+            link,
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.bodyMedium,
+            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 6.dp)
+        )
     }
 }
 

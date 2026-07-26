@@ -82,10 +82,6 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
         _mostrarSoAtrasadas.value = !_mostrarSoAtrasadas.value
     }
 
-    fun ativarFiltroAtrasadas() {
-        _mostrarSoAtrasadas.value = true
-    }
-
     fun marcarConclusao(aula: Aula, concluida: Boolean) {
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
     }

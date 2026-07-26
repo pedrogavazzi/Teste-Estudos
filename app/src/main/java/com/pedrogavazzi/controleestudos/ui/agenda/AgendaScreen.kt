@@ -31,7 +31,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,18 +80,12 @@ private fun inicioDoDia(millis: Long): Long = Calendar.getInstance().apply {
  * Aba Agenda: além da lista de aulas com data (agrupadas por dia, com destaque para hoje),
  * mostra também as aulas ainda sem data marcada — antes elas ficavam invisíveis aqui, só
  * apareciam entrando na matéria específica — e um filtro rápido para ver só as atrasadas.
- *
- * @param disparoMostrarSoAtrasadas quando true (ex.: veio de um toque no card de Desempenho),
- *   liga o filtro "só atrasadas" assim que a tela abre; [onFiltroAtrasadasConsumido] avisa que
- *   já foi tratado, pra não repetir a cada recomposição.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaScreen(
     viewModel: AgendaViewModel,
-    onAbrirCaderno: (Long) -> Unit = {},
-    disparoMostrarSoAtrasadas: Boolean = false,
-    onFiltroAtrasadasConsumido: () -> Unit = {}
+    onAbrirCaderno: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val aulas by viewModel.aulasAgendadas.collectAsState()
@@ -100,13 +93,6 @@ fun AgendaScreen(
     val temAulasComData by viewModel.temAulasComData.collectAsState()
     val soAtrasadas by viewModel.mostrarSoAtrasadas.collectAsState()
     var termoBusca by remember { mutableStateOf("") }
-
-    LaunchedEffect(disparoMostrarSoAtrasadas) {
-        if (disparoMostrarSoAtrasadas) {
-            viewModel.ativarFiltroAtrasadas()
-            onFiltroAtrasadasConsumido()
-        }
-    }
 
     val aulasFiltradas = remember(aulas, termoBusca) {
         if (termoBusca.isBlank()) aulas

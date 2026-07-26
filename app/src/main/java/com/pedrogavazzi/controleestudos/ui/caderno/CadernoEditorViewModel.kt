@@ -49,10 +49,6 @@ class CadernoEditorViewModel(
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
     }
 
-    fun salvarLink(aula: Aula, link: String) {
-        viewModelScope.launch { repository.salvarLink(aula, link) }
-    }
-
     fun adicionarFotos(aulaId: Long, uris: List<Uri>) {
         viewModelScope.launch {
             uris.forEach { uri -> repository.adicionarFoto(aulaId, uri) }
