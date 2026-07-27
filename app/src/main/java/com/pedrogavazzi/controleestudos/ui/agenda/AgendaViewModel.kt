@@ -24,12 +24,16 @@ data class AulaComMateria(
     val corHex: String
 )
 
+/** As três formas de olhar pra Agenda — sempre uma de cada vez (uma aula concluída não pode
+ *  também estar atrasada, por exemplo, então não faz sentido combinar mais de um filtro). */
+enum class FiltroAgenda { PENDENTES, ATRASADAS, CONCLUIDAS }
+
 class AgendaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: StudyRepository = (application as ControleEstudosApp).repository
 
-    private val _mostrarSoAtrasadas = MutableStateFlow(false)
-    val mostrarSoAtrasadas: StateFlow<Boolean> = _mostrarSoAtrasadas.asStateFlow()
+    private val _filtro = MutableStateFlow(FiltroAgenda.PENDENTES)
+    val filtro: StateFlow<FiltroAgenda> = _filtro.asStateFlow()
 
     private val aulasComMateria =
         combine(repository.observarTodasAsAulas(), repository.observarMaterias()) { aulas, materias ->
@@ -40,13 +44,19 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-    /** Aulas com data marcada, ainda não concluídas — a lista principal da Agenda. Quando o
-     *  filtro "só atrasadas" está ligado, mostra só as que já passaram do fim do dia agendado. */
+    /** Aulas com data marcada, filtradas conforme [filtro] — pendentes (agendada, ainda não
+     *  atrasada), atrasadas, ou concluídas (essas três cobrem juntas toda aula com data). */
     val aulasAgendadas: StateFlow<List<AulaComMateria>> =
-        combine(aulasComMateria, _mostrarSoAtrasadas) { itens, soAtrasadas ->
+        combine(aulasComMateria, _filtro) { itens, filtro ->
             itens
-                .filter { it.aula.dataHoraMillis != null && !it.aula.concluida }
-                .filter { !soAtrasadas || it.aula.statusAtual() == StatusAula.ATRASADA }
+                .filter { it.aula.dataHoraMillis != null }
+                .filter { item ->
+                    when (filtro) {
+                        FiltroAgenda.PENDENTES -> item.aula.statusAtual() == StatusAula.AGENDADA
+                        FiltroAgenda.ATRASADAS -> item.aula.statusAtual() == StatusAula.ATRASADA
+                        FiltroAgenda.CONCLUIDAS -> item.aula.statusAtual() == StatusAula.CONCLUIDA
+                    }
+                }
                 .sortedBy { it.aula.dataHoraMillis }
         }.stateIn(
             scope = viewModelScope,
@@ -66,20 +76,19 @@ class AgendaViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
-    /** Se existe alguma aula com data marcada, SEM aplicar o filtro "só atrasadas" — usado só
-     *  pra decidir se o botão do filtro deve aparecer. Precisa ser independente do resultado
-     *  filtrado: senão, ligar o filtro e não ter nenhuma atrasada faz a lista (e o próprio
-     *  botão do filtro) sumir, sem nenhum jeito de desligá-lo de novo. */
+    /** Se existe alguma aula com data marcada, de QUALQUER status — usado só pra decidir se a
+     *  fileira de filtros deve aparecer. Não pode considerar só o filtro atual: senão, trocar
+     *  pra "Concluídas" sem nenhuma concluída ainda escondia a própria fileira de filtros. */
     val temAulasComData: StateFlow<Boolean> =
-        aulasComMateria.map { itens -> itens.any { it.aula.dataHoraMillis != null && !it.aula.concluida } }
+        aulasComMateria.map { itens -> itens.any { it.aula.dataHoraMillis != null } }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = false
             )
 
-    fun alternarFiltroAtrasadas() {
-        _mostrarSoAtrasadas.value = !_mostrarSoAtrasadas.value
+    fun selecionarFiltro(novo: FiltroAgenda) {
+        _filtro.value = novo
     }
 
     fun marcarConclusao(aula: Aula, concluida: Boolean) {

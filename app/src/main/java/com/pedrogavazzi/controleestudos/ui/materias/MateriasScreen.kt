@@ -1,5 +1,7 @@
 package com.pedrogavazzi.controleestudos.ui.materias
 
+import kotlinx.coroutines.launch
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MenuBook
@@ -27,9 +30,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +60,12 @@ fun MateriasScreen(
         else materias.filter { it.materia.nome.contains(termoBusca, ignoreCase = true) }
     }
 
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val escopo = rememberCoroutineScope()
+    val mostrarBotaoTopo by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 2 }
+    }
+
     Scaffold(
         topBar = {
             androidx.compose.material3.CenterAlignedTopAppBar(
@@ -62,11 +73,25 @@ fun MateriasScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                materiaEmEdicao = null
-                dialogoAberto = true
-            }) {
-                Icon(Icons.Filled.Add, contentDescription = "Adicionar matéria")
+            Column(horizontalAlignment = Alignment.End) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = mostrarBotaoTopo,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut()
+                ) {
+                    androidx.compose.material3.SmallFloatingActionButton(
+                        onClick = { escopo.launch { listState.animateScrollToItem(0) } },
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Voltar ao topo")
+                    }
+                }
+                FloatingActionButton(onClick = {
+                    materiaEmEdicao = null
+                    dialogoAberto = true
+                }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Adicionar matéria")
+                }
             }
         }
     ) { padding ->
@@ -99,6 +124,7 @@ fun MateriasScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)

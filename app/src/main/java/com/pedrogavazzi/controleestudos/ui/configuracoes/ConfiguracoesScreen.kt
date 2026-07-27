@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Notifications
@@ -245,111 +248,142 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
 private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val config by viewModel.configuracaoAutomatica.collectAsState()
+    var expandido by remember { mutableStateOf(false) }
     var mostrarConfirmacaoRefazer by remember { mutableStateOf(false) }
     var mensagemResultado by remember { mutableStateOf<String?>(null) }
 
-    SecaoConfiguracao(titulo = "Agendamento automático", icone = Icons.Filled.AutoAwesome) {
-        Text(
-            "Agenda sozinho todas as aulas que ainda não têm data, misturando todas as " +
-                "matérias em rodízio — uma de cada vez, na ordem de cada uma.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Text(
-            "Aulas por dia",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            (1..5).forEach { quantidade ->
-                FilterChip(
-                    selected = config.aulasPorDia == quantidade,
-                    onClick = {
-                        // Ajusta a lista de horários pro novo tamanho: mantém os já
-                        // escolhidos e completa o resto com um horário padrão (19h) — nunca
-                        // deixa o tamanho da lista descasar de aulasPorDia.
-                        val novosHorarios = (0 until quantidade).map { indice ->
-                            config.horariosMinutos.getOrElse(indice) { 19 * 60 }
-                        }
-                        viewModel.definirConfiguracaoAutomatica(
-                            config.copy(aulasPorDia = quantidade, horariosMinutos = novosHorarios)
-                        )
-                    },
-                    label = { Text("$quantidade") }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = com.pedrogavazzi.controleestudos.ui.theme.FormaCard,
+        colors = com.pedrogavazzi.controleestudos.ui.theme.corDeCardTonal()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            // Recolhida por padrão — depois de usada, volta a ficar fechada sozinha, pra não
+            // deixar uma seção de configuração avançada ocupando espaço na tela o tempo todo.
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expandido = !expandido },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Agendamento automático",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 8.dp).weight(1f)
+                )
+                Icon(
+                    if (expandido) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expandido) "Recolher" else "Expandir"
                 )
             }
-        }
 
-        Text(
-            "Horários",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            config.horariosMinutos.forEachIndexed { indice, minutos ->
-                OutlinedButton(onClick = {
-                    com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeHora(context, minutos) { novoMinuto ->
-                        val novaLista = config.horariosMinutos.toMutableList().apply { set(indice, novoMinuto) }
-                        viewModel.definirConfiguracaoAutomatica(config.copy(horariosMinutos = novaLista))
+            androidx.compose.animation.AnimatedVisibility(visible = expandido) {
+                Column(Modifier.padding(top = 12.dp)) {
+                    Text(
+                        "Agenda sozinho todas as aulas que ainda não têm data, misturando todas as " +
+                            "matérias em rodízio — uma de cada vez, na ordem de cada uma.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        "Aulas por dia",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        (1..5).forEach { quantidade ->
+                            FilterChip(
+                                selected = config.aulasPorDia == quantidade,
+                                onClick = {
+                                    // Ajusta a lista de horários pro novo tamanho: mantém os já
+                                    // escolhidos e completa o resto com um horário padrão (19h) —
+                                    // nunca deixa o tamanho da lista descasar de aulasPorDia.
+                                    val novosHorarios = (0 until quantidade).map { indice ->
+                                        config.horariosMinutos.getOrElse(indice) { 19 * 60 }
+                                    }
+                                    viewModel.definirConfiguracaoAutomatica(
+                                        config.copy(aulasPorDia = quantidade, horariosMinutos = novosHorarios)
+                                    )
+                                },
+                                label = { Text("$quantidade") }
+                            )
+                        }
                     }
-                }) {
-                    Text(com.pedrogavazzi.controleestudos.ui.components.formatarMinutosComoHora(minutos))
+
+                    Text(
+                        "Horários",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        config.horariosMinutos.forEachIndexed { indice, minutos ->
+                            OutlinedButton(onClick = {
+                                com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeHora(context, minutos) { novoMinuto ->
+                                    val novaLista = config.horariosMinutos.toMutableList().apply { set(indice, novoMinuto) }
+                                    viewModel.definirConfiguracaoAutomatica(config.copy(horariosMinutos = novaLista))
+                                }
+                            }) {
+                                Text(com.pedrogavazzi.controleestudos.ui.components.formatarMinutosComoHora(minutos))
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = config.incluirSabado,
+                            onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirSabado = it)) }
+                        )
+                        Text("Incluir sábado")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = config.incluirDomingo,
+                            onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirDomingo = it)) }
+                        )
+                        Text("Incluir domingo")
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.agendarAutomaticamente { quantidade ->
+                                mensagemResultado = if (quantidade > 0) {
+                                    "$quantidade aula(s) agendada(s)."
+                                } else {
+                                    "Não havia aulas pendentes para agendar."
+                                }
+                                expandido = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                    ) { Text("Agendar aulas pendentes agora") }
+
+                    OutlinedButton(
+                        onClick = { mostrarConfirmacaoRefazer = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) { Text("Refazer todo o agendamento") }
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = config.incluirSabado,
-                onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirSabado = it)) }
-            )
-            Text("Incluir sábado")
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = config.incluirDomingo,
-                onCheckedChange = { viewModel.definirConfiguracaoAutomatica(config.copy(incluirDomingo = it)) }
-            )
-            Text("Incluir domingo")
-        }
-
-        Button(
-            onClick = {
-                viewModel.agendarAutomaticamente { quantidade ->
-                    mensagemResultado = if (quantidade > 0) {
-                        "$quantidade aula(s) agendada(s)."
-                    } else {
-                        "Não havia aulas pendentes para agendar."
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-        ) { Text("Agendar aulas pendentes agora") }
-
-        OutlinedButton(
-            onClick = { mostrarConfirmacaoRefazer = true },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) { Text("Refazer todo o agendamento") }
-
-        mensagemResultado?.let { mensagem ->
-            Text(
-                mensagem,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            mensagemResultado?.let { mensagem ->
+                Text(
+                    mensagem,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 
@@ -370,6 +404,7 @@ private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
                     viewModel.refazerAgendamentoAutomatico { quantidade ->
                         mensagemResultado = "$quantidade aula(s) reorganizada(s)."
                     }
+                    expandido = false
                 }) { Text("Refazer") }
             },
             dismissButton = {

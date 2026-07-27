@@ -2,6 +2,8 @@ package com.pedrogavazzi.controleestudos.ui.agenda
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Update
@@ -33,8 +36,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +62,7 @@ import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeDataEHora
 import com.pedrogavazzi.controleestudos.ui.components.formatarDiaSemanaData
 import com.pedrogavazzi.controleestudos.ui.components.formatarHora
 import com.pedrogavazzi.controleestudos.ui.theme.VermelhoAlerta
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 private fun ehHoje(millis: Long): Boolean {
@@ -92,7 +98,7 @@ fun AgendaScreen(
     val aulas by viewModel.aulasAgendadas.collectAsState()
     val aulasSemData by viewModel.aulasSemData.collectAsState()
     val temAulasComData by viewModel.temAulasComData.collectAsState()
-    val soAtrasadas by viewModel.mostrarSoAtrasadas.collectAsState()
+    val filtro by viewModel.filtro.collectAsState()
     var termoBusca by remember { mutableStateOf("") }
 
     val aulasFiltradas = remember(aulas, termoBusca) {
@@ -110,16 +116,35 @@ fun AgendaScreen(
                 it.aula.nomeExibido().contains(termoBusca, ignoreCase = true)
         }
     }
-    // A seção "sem data" não aparece quando o filtro "só atrasadas" está ligado (não faz
-    // sentido misturar os dois) — essa mesma condição é usada tanto pra decidir se a seção
-    // deve ser desenhada quanto pra decidir se a tela está "vazia".
-    val semDataVisivel = semDataFiltradas.isNotEmpty() && !soAtrasadas
+    // A seção "sem data" só aparece no filtro "Pendentes" (não faz sentido misturar com
+    // Atrasadas/Concluídas) — essa mesma condição decide tanto se a seção é desenhada quanto
+    // se a tela está "vazia".
+    val semDataVisivel = semDataFiltradas.isNotEmpty() && filtro == FiltroAgenda.PENDENTES
+
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val escopo = rememberCoroutineScope()
+    val mostrarBotaoTopo by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 2 }
+    }
 
     Scaffold(
         topBar = {
             androidx.compose.material3.CenterAlignedTopAppBar(
                 title = { Text("Agenda", style = MaterialTheme.typography.titleLarge) }
             )
+        },
+        floatingActionButton = {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = mostrarBotaoTopo,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut()
+            ) {
+                androidx.compose.material3.SmallFloatingActionButton(
+                    onClick = { escopo.launch { listState.animateScrollToItem(0) } }
+                ) {
+                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Voltar ao topo")
+                }
+            }
         }
     ) { padding ->
         ConteudoComLarguraMaxima(Modifier.padding(padding)) {
@@ -132,16 +157,27 @@ fun AgendaScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
-                if (temAulasComData || soAtrasadas) {
-                    // Usa temAulasComData (não filtrado) em vez de aulas.isNotEmpty(): se
-                    // dependesse da lista já filtrada, ligar "só atrasadas" sem nenhuma
-                    // atrasada esvaziava a lista E escondia este botão junto — sem nenhum
-                    // jeito de desligar o filtro de novo.
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                if (temAulasComData) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         FilterChip(
-                            selected = soAtrasadas,
-                            onClick = { viewModel.alternarFiltroAtrasadas() },
-                            label = { Text("Só atrasadas") }
+                            selected = filtro == FiltroAgenda.PENDENTES,
+                            onClick = { viewModel.selecionarFiltro(FiltroAgenda.PENDENTES) },
+                            label = { Text("Pendentes") }
+                        )
+                        FilterChip(
+                            selected = filtro == FiltroAgenda.ATRASADAS,
+                            onClick = { viewModel.selecionarFiltro(FiltroAgenda.ATRASADAS) },
+                            label = { Text("Atrasadas") }
+                        )
+                        FilterChip(
+                            selected = filtro == FiltroAgenda.CONCLUIDAS,
+                            onClick = { viewModel.selecionarFiltro(FiltroAgenda.CONCLUIDAS) },
+                            label = { Text("Concluídas") }
                         )
                     }
                 }
@@ -166,14 +202,16 @@ fun AgendaScreen(
                         Text(
                             when {
                                 termoBusca.isNotBlank() -> "Nenhuma aula encontrada para \"$termoBusca\"."
-                                soAtrasadas -> "Nenhuma aula atrasada — tudo em dia."
-                                else -> "Nenhuma aula encontrada."
+                                filtro == FiltroAgenda.ATRASADAS -> "Nenhuma aula atrasada — tudo em dia."
+                                filtro == FiltroAgenda.CONCLUIDAS -> "Nenhuma aula concluída ainda."
+                                else -> "Nenhuma aula pendente — tudo agendado ou concluído."
                             },
                             modifier = Modifier.padding(16.dp)
                         )
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)

@@ -1,5 +1,6 @@
 package com.pedrogavazzi.controleestudos.ui.caderno
 
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -29,6 +31,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +50,10 @@ import com.pedrogavazzi.controleestudos.ui.components.TextoNomeMateria
 import com.pedrogavazzi.controleestudos.ui.components.abrirSeletorDeData
 import com.pedrogavazzi.controleestudos.ui.components.formatarDiaSemanaData
 import com.pedrogavazzi.controleestudos.ui.components.formatarHora
+
+/** Distância mínima de arrasto (em pixels) pra contar como "troca de dia" — generosa de
+ *  propósito, pra não disparar sem querer num desvio pequeno de uma rolagem vertical. */
+private const val LIMIAR_TROCA_DIA_PX = 120f
 
 /**
  * Aba "Caderno": aulas de um dia (hoje por padrão, mas dá pra navegar para qualquer outro
@@ -102,7 +111,27 @@ fun CadernoScreen(
             }
         }
     ) { padding ->
-        com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima(Modifier.padding(padding)) {
+        var arrastoAcumulado by remember { mutableStateOf(0f) }
+        val modificadorConteudo = Modifier
+            .padding(padding)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        // Limiar generoso de propósito: evita trocar de dia sem querer com um
+                        // toque de rolagem vertical que desviou um pouco pro lado.
+                        if (arrastoAcumulado > LIMIAR_TROCA_DIA_PX) {
+                            viewModel.diaAnterior()
+                        } else if (arrastoAcumulado < -LIMIAR_TROCA_DIA_PX) {
+                            viewModel.diaSeguinte()
+                        }
+                        arrastoAcumulado = 0f
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    arrastoAcumulado += dragAmount
+                }
+            }
+        com.pedrogavazzi.controleestudos.ui.components.ConteudoComLarguraMaxima(modificadorConteudo) {
         if (semAulas) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
