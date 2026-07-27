@@ -139,7 +139,7 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
 
     /** Define um nome customizado para a aula, ou volta ao padrão "Aula N" se [novoNome] for vazio. */
     suspend fun renomearAula(aula: Aula, novoNome: String?) {
-        aulaDao.atualizar(aula.copy(nomePersonalizado = novoNome?.trim()?.takeIf { it.isNotBlank() }))
+        aulaDao.atualizarNomePersonalizado(aula.id, novoNome?.trim()?.takeIf { nome -> nome.isNotBlank() })
     }
 
     /** Define ou altera a data/horário de uma aula e reprograma o alerta, se ativado. */
@@ -279,22 +279,27 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
     }
 
     suspend fun salvarObservacao(aula: Aula, observacao: String) {
-        aulaDao.atualizar(aula.copy(observacao = observacao))
+        aulaDao.atualizarObservacao(aula.id, observacao)
     }
 
-    /** Salva as anotações longas do caderno de aula (independentes da observação curta). */
+    /**
+     * Salva as anotações longas do caderno de aula (independentes da observação curta).
+     * Usa uma consulta SQL que só toca a coluna anotacoesCaderno — nunca reescreve a linha
+     * inteira a partir de um objeto Aula que a tela já tinha em mãos, então não tem como
+     * mexer sem querer em nenhum outro campo (como concluida), seja qual for o motivo.
+     */
     suspend fun salvarAnotacaoCaderno(aula: Aula, anotacoes: String) {
-        aulaDao.atualizar(aula.copy(anotacoesCaderno = anotacoes))
+        aulaDao.atualizarAnotacaoCaderno(aula.id, anotacoes)
     }
 
     /** Salva o link opcional da aula (videochamada, gravação, material etc.). */
     suspend fun salvarLink(aula: Aula, link: String) {
-        aulaDao.atualizar(aula.copy(link = link))
+        aulaDao.atualizarLink(aula.id, link)
     }
 
     /** Marca ou desmarca uma aula como favorita, pra revisão rápida na aba Favoritos. */
     suspend fun definirFavorita(aula: Aula, favorita: Boolean) {
-        aulaDao.atualizar(aula.copy(favorita = favorita))
+        aulaDao.atualizarFavorita(aula.id, favorita)
     }
 
     suspend fun excluirAula(aula: Aula) {

@@ -58,8 +58,8 @@ private const val LIMIAR_TROCA_DIA_PX = 120f
 /**
  * Aba "Caderno": aulas de um dia (hoje por padrão, mas dá pra navegar para qualquer outro
  * dia — histórico), práticas para anotar durante a própria aula. Toque em uma aula para abrir
- * o editor completo; ao salvar alguma anotação, a aula sai de "Em andamento" e passa para
- * "Aulas feitas" — mas continua editável.
+ * o editor completo; a aula só sai de "Em andamento" e passa para "Aulas feitas" quando é
+ * marcada como concluída — continua editável dos dois lados.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

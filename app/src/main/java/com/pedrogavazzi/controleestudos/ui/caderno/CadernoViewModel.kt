@@ -40,9 +40,9 @@ data class EstadoCaderno(
 
 /**
  * Caderno das aulas de um dia — por padrão hoje, mas o usuário pode navegar para qualquer
- * outro dia (histórico), não só "hoje". Assim que uma anotação é salva para uma aula, ela
- * sai da lista "em andamento" e passa para "aulas feitas" — mas continua acessível e
- * editável ali, sem perder o que já foi escrito.
+ * outro dia (histórico), não só "hoje". Uma aula só sai da lista "em andamento" e passa para
+ * "aulas feitas" quando é marcada como concluída — escrever uma anotação sozinha não move a
+ * aula, porque anotar durante a aula não significa que ela já acabou.
  */
 class CadernoViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -63,8 +63,8 @@ class CadernoViewModel(application: Application) : AndroidViewModel(application)
                     AulaComMateria(aula, materia.nome, materia.corHex)
                 }
             EstadoCaderno(
-                emAndamento = aulasDoDia.filter { !temAnotacaoReal(it.aula.anotacoesCaderno) },
-                aulasFeitas = aulasDoDia.filter { temAnotacaoReal(it.aula.anotacoesCaderno) }
+                emAndamento = aulasDoDia.filter { !it.aula.concluida },
+                aulasFeitas = aulasDoDia.filter { it.aula.concluida }
             )
         }.stateIn(
             scope = viewModelScope,
@@ -98,9 +98,3 @@ class CadernoViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { repository.marcarConclusao(aula, concluida) }
     }
 }
-
-/** Uma anotação só conta como "feita" se houver texto de verdade — o texto serializado
- *  nunca fica totalmente vazio depois que a tela do caderno é aberta, pois guarda o
- *  cabeçalho de estilos mesmo sem conteúdo digitado. */
-private fun temAnotacaoReal(anotacoesCaderno: String): Boolean =
-    CadernoSerializer.temConteudo(anotacoesCaderno)

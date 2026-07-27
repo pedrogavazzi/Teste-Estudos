@@ -81,10 +81,14 @@ object ArmazenamentoFotos {
      *  grandes (uma decodificação direta em resolução total pode passar de 50-100MB de RAM
      *  para uma foto de câmera comum). */
     private fun decodificarReduzido(context: Context, uri: Uri): Bitmap? {
+        // Decodificar em modo "só dimensões" (inJustDecodeBounds = true) sempre devolve null
+        // por design do Android — só preenche outWidth/outHeight como efeito colateral. A
+        // checagem de sucesso tem que ser feita na abertura do stream em si, nunca no valor
+        // de retorno desse decode — checar o retorno (como uma versão anterior fazia) faz
+        // essa função devolver null sempre, pra qualquer foto, de qualquer origem.
         val opcoesDimensoes = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { entrada ->
-            BitmapFactory.decodeStream(entrada, null, opcoesDimensoes)
-        } ?: return null
+        val streamDimensoes = context.contentResolver.openInputStream(uri) ?: return null
+        streamDimensoes.use { entrada -> BitmapFactory.decodeStream(entrada, null, opcoesDimensoes) }
 
         var amostragem = 1
         var largura = opcoesDimensoes.outWidth
@@ -97,7 +101,8 @@ object ArmazenamentoFotos {
         }
 
         val opcoesReais = BitmapFactory.Options().apply { inSampleSize = amostragem }
-        val bitmapAmostrado = context.contentResolver.openInputStream(uri)?.use { entrada ->
+        val streamReal = context.contentResolver.openInputStream(uri) ?: return null
+        val bitmapAmostrado = streamReal.use { entrada ->
             BitmapFactory.decodeStream(entrada, null, opcoesReais)
         } ?: return null
 

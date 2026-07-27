@@ -43,6 +43,25 @@ interface AulaDao {
     @Update
     suspend fun atualizar(aula: Aula)
 
+    // As consultas abaixo atualizam só a coluna indicada — ao contrário de @Update (que
+    // reescreve a linha inteira a partir do objeto Aula em memória), essas não têm como
+    // afetar nenhum outro campo por engano, nem por um objeto desatualizado na tela nem por
+    // qualquer outro motivo. Usadas pelas telas que editam só um campo de cada vez.
+    @Query("UPDATE aulas SET anotacoesCaderno = :anotacoes WHERE id = :aulaId")
+    suspend fun atualizarAnotacaoCaderno(aulaId: Long, anotacoes: String)
+
+    @Query("UPDATE aulas SET observacao = :observacao WHERE id = :aulaId")
+    suspend fun atualizarObservacao(aulaId: Long, observacao: String)
+
+    @Query("UPDATE aulas SET link = :link WHERE id = :aulaId")
+    suspend fun atualizarLink(aulaId: Long, link: String)
+
+    @Query("UPDATE aulas SET favorita = :favorita WHERE id = :aulaId")
+    suspend fun atualizarFavorita(aulaId: Long, favorita: Boolean)
+
+    @Query("UPDATE aulas SET nomePersonalizado = :nome WHERE id = :aulaId")
+    suspend fun atualizarNomePersonalizado(aulaId: Long, nome: String?)
+
     @Delete
     suspend fun excluir(aula: Aula)
 
