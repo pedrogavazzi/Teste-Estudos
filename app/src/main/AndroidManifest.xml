@@ -6,6 +6,14 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Necessário a partir do Android 11 pra garantir que o app enxergue o app de câmera do
+         aparelho ao pedir pra tirar uma foto (tirar foto da aula, no caderno). -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".ControleEstudosApp"
         android:allowBackup="true"

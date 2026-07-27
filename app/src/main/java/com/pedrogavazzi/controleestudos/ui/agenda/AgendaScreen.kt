@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.AddLink
@@ -336,6 +337,13 @@ private fun ItemAgenda(
                         Icons.Filled.Link,
                         contentDescription = "Abrir link de ${item.aula.nomeExibido()}",
                         tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = { mostrarDialogoLink = true }) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Trocar link de ${item.aula.nomeExibido()}",
+                        tint = MaterialTheme.colorScheme.outline
                     )
                 }
             } else {

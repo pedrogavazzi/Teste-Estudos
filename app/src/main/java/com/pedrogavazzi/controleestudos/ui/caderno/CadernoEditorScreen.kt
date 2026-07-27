@@ -19,6 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatBold
@@ -105,6 +107,13 @@ fun CadernoEditorScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(20)
     ) { uris ->
         if (uris.isNotEmpty()) viewModel.adicionarFotos(aulaId, uris)
+    }
+    var uriCapturaAtual by remember { mutableStateOf<android.net.Uri?>(null) }
+    val lancadorCamera = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { sucesso ->
+        val uri = uriCapturaAtual
+        if (sucesso && uri != null) viewModel.adicionarFotos(aulaId, listOf(uri))
     }
 
     var campo by remember { mutableStateOf(TextFieldValue("")) }
@@ -324,12 +333,17 @@ fun CadernoEditorScreen(
                             fotos = fotos,
                             somenteLeitura = modoLeitura,
                             arquivoDaFoto = { foto -> viewModel.arquivoDaFoto(foto) },
-                            onAdicionar = {
+                            onEscolherDaGaleria = {
                                 seletorDeFotos.launch(
                                     androidx.activity.result.PickVisualMediaRequest(
                                         androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
                                     )
                                 )
+                            },
+                            onTirarFoto = {
+                                val novaUri = com.pedrogavazzi.controleestudos.data.ArmazenamentoFotos.criarUriParaCaptura(context)
+                                uriCapturaAtual = novaUri
+                                lancadorCamera.launch(novaUri)
                             },
                             onRemover = { foto -> viewModel.excluirFoto(foto) }
                         )
@@ -468,10 +482,12 @@ private fun SecaoFotos(
     fotos: List<FotoAula>,
     somenteLeitura: Boolean,
     arquivoDaFoto: (FotoAula) -> java.io.File,
-    onAdicionar: () -> Unit,
+    onEscolherDaGaleria: () -> Unit,
+    onTirarFoto: () -> Unit,
     onRemover: (FotoAula) -> Unit
 ) {
     var fotoEmVisualizacao by remember { mutableStateOf<FotoAula?>(null) }
+    var menuAdicionarAberto by remember { mutableStateOf(false) }
 
     Column {
         Text(
@@ -517,19 +533,42 @@ private fun SecaoFotos(
             }
             if (!somenteLeitura) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable(onClick = onAdicionar),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.AddAPhoto,
-                            contentDescription = "Adicionar fotos",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { menuAdicionarAberto = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.AddAPhoto,
+                                contentDescription = "Adicionar fotos",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = menuAdicionarAberto,
+                            onDismissRequest = { menuAdicionarAberto = false }
+                        ) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Tirar foto agora") },
+                                leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
+                                onClick = {
+                                    menuAdicionarAberto = false
+                                    onTirarFoto()
+                                }
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Escolher da galeria") },
+                                leadingIcon = { Icon(Icons.Filled.PhotoLibrary, contentDescription = null) },
+                                onClick = {
+                                    menuAdicionarAberto = false
+                                    onEscolherDaGaleria()
+                                }
+                            )
+                        }
                     }
                 }
             }

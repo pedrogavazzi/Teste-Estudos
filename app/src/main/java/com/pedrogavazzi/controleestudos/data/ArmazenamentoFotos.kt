@@ -60,6 +60,22 @@ object ArmazenamentoFotos {
         runCatching { arquivoPara(context, nomeArquivo).delete() }
     }
 
+    /**
+     * Cria um arquivo temporário (na pasta de cache do app) e devolve uma Uri de conteúdo
+     * (via FileProvider) pra passar pro app de câmera escrever a foto capturada nela — o app
+     * de câmera não tem permissão de escrever direto no armazenamento do nosso app, só numa
+     * Uri de conteúdo compartilhada assim. Depois de capturada, [copiarReduzindoParaArmazenamentoLocal]
+     * lê dessa mesma Uri normalmente, como leria de qualquer imagem escolhida da galeria.
+     */
+    fun criarUriParaCaptura(context: Context): Uri {
+        val pastaTemp = File(context.cacheDir, "capturas_camera")
+        if (!pastaTemp.exists()) pastaTemp.mkdirs()
+        val arquivoTemp = File(pastaTemp, "captura_${System.currentTimeMillis()}.jpg")
+        return androidx.core.content.FileProvider.getUriForFile(
+            context, "${context.packageName}.fileprovider", arquivoTemp
+        )
+    }
+
     /** Lê só as dimensões primeiro (sem carregar a imagem inteira), calcula quanto precisa
      *  reduzir, e só então decodifica de fato — evita estourar memória com fotos muito
      *  grandes (uma decodificação direta em resolução total pode passar de 50-100MB de RAM
