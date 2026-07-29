@@ -281,6 +281,23 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         return agendarAutomaticamente(materiaIds)
     }
 
+    /**
+     * Desagenda de uma vez todas as aulas de uma matéria que têm data marcada e ainda não
+     * foram concluídas — volta cada uma pra "sem data", cancelando o alerta de cada uma.
+     * Aulas já concluídas não são afetadas (a data delas é histórico, não agenda pendente).
+     * Devolve quantas aulas foram desagendadas.
+     */
+    suspend fun desagendarMateria(materiaId: Long): Int {
+        val aulasParaDesagendar = aulaDao.buscarTodasDaMateriaSuspend(materiaId)
+            .filter { it.dataHoraMillis != null && !it.concluida }
+        aulasParaDesagendar.forEach { aula ->
+            val semData = aula.copy(dataHoraMillis = null)
+            aulaDao.atualizar(semData)
+            alarmScheduler.cancelar(semData)
+        }
+        return aulasParaDesagendar.size
+    }
+
     suspend fun marcarConclusao(aula: Aula, concluida: Boolean) {
         val atualizada = aula.copy(
             concluida = concluida,

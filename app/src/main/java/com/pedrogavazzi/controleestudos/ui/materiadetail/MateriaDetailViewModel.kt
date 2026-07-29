@@ -55,6 +55,15 @@ class MateriaDetailViewModel(
         viewModelScope.launch { repository.desfazerAgendamentoEmLote(aulaIds) }
     }
 
+    /** Desagenda de uma vez todas as aulas desta matéria que têm data e ainda não foram
+     *  concluídas. [aoConcluir] recebe quantas aulas foram desagendadas. */
+    fun desagendarMateria(aoConcluir: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            val quantidade = repository.desagendarMateria(materiaId)
+            aoConcluir(quantidade)
+        }
+    }
+
     fun adicionarAula() {
         viewModelScope.launch { repository.adicionarAula(materiaId) }
     }

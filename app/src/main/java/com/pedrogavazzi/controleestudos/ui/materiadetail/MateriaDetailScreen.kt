@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -69,6 +70,8 @@ fun MateriaDetailScreen(
     val concluidas = aulas.count { it.concluida }
     val percentual = if (aulas.isEmpty()) 0f else concluidas / aulas.size.toFloat()
     val aulasSemData = aulas.count { it.dataHoraMillis == null }
+    val aulasAgendadasNaoConcluidas = aulas.count { it.dataHoraMillis != null && !it.concluida }
+    var mostrarConfirmacaoDesagendar by remember { mutableStateOf(false) }
     var mostrarDialogoLote by remember { mutableStateOf(false) }
 
     // Só uma aula fica expandida por vez: abrir outra fecha a anterior automaticamente.
@@ -172,6 +175,36 @@ fun MateriaDetailScreen(
                     }
                 }
             }
+            if (aulasAgendadasNaoConcluidas > 0) {
+                item {
+                    Surface(
+                        onClick = { mostrarConfirmacaoDesagendar = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.EventBusy, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                            androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 12.dp))
+                            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Desagendar toda a matéria",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    "$aulasAgendadasNaoConcluidas aula(s) agendada(s) voltam a ficar sem data",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             items(aulas, key = { it.id }) { aula ->
                 AulaItem(
                     aula = aula,
@@ -227,6 +260,35 @@ fun MateriaDetailScreen(
                     }
                 }
                 mostrarDialogoLote = false
+            }
+        )
+    }
+
+    if (mostrarConfirmacaoDesagendar) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoDesagendar = false },
+            title = { Text("Desagendar toda a matéria?") },
+            text = {
+                Text(
+                    "As $aulasAgendadasNaoConcluidas aula(s) agendada(s) e ainda não concluídas " +
+                        "voltam a ficar sem data marcada. Aulas já concluídas não são afetadas."
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    mostrarConfirmacaoDesagendar = false
+                    viewModel.desagendarMateria { quantidade ->
+                        escopo.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "$quantidade aula(s) desagendada(s)",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }) { Text("Desagendar") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { mostrarConfirmacaoDesagendar = false }) { Text("Cancelar") }
             }
         )
     }
