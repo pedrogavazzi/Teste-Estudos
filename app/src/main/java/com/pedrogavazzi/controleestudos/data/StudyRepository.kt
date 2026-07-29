@@ -216,12 +216,22 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
      * marcado) — aulas novas que forem adicionadas depois entram no fim na próxima vez que
      * essa função rodar. Devolve quantas aulas foram agendadas.
      */
-    suspend fun agendarAutomaticamente(): Int {
+    /**
+     * Agenda automaticamente as aulas ainda sem data (não concluídas) só das matérias em
+     * [materiaIds] — misturando essas em rodízio entre si (uma de cada vez, respeitando a
+     * ordem/número interna de cada uma). Pensado pra funcionar por ciclos: o aluno escolhe um
+     * grupo de matérias pra focar agora, agenda; depois escolhe outro grupo diferente e agenda
+     * de novo — o segundo ciclo continua automaticamente a partir de onde o primeiro parou
+     * (ver [ultimaDataAgendada] abaixo, que olha a agenda inteira, não só as matérias deste
+     * ciclo — assim um ciclo nunca cai em cima da data de outro já agendado). Devolve quantas
+     * aulas foram agendadas.
+     */
+    suspend fun agendarAutomaticamente(materiaIds: Set<Long>): Int {
         val config = preferencias.configuracaoAutomatica.value
         val todasAulas = aulaDao.buscarTodasSuspend()
-        val materias = materiaDao.buscarTodasSuspend()
+        val materiasDoCiclo = materiaDao.buscarTodasSuspend().filter { it.id in materiaIds }
 
-        val aulasPorMateria = materias
+        val aulasPorMateria = materiasDoCiclo
             .sortedBy { it.nome.lowercase() }
             .map { materia ->
                 todasAulas
@@ -231,6 +241,9 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
         val ordemMisturada = AgendamentoUtil.misturarRoundRobin(aulasPorMateria)
         if (ordemMisturada.isEmpty()) return 0
 
+        // Sempre olha a agenda INTEIRA (todas as matérias, não só as deste ciclo) pra decidir
+        // onde continuar — senão um ciclo novo podia cair em cima de datas que outro ciclo,
+        // de outras matérias, já estava usando.
         val ultimaDataAgendada = todasAulas.mapNotNull { it.dataHoraMillis }.maxOrNull()
         val inicio = AgendamentoUtil.calcularInicioDaContinuacao(ultimaDataAgendada, System.currentTimeMillis())
         val slots = AgendamentoUtil.calcularSlotsAutomaticos(
@@ -251,18 +264,21 @@ class StudyRepository(context: Context, private val preferencias: PreferenciasAp
     }
 
     /**
-     * Limpa a data de TODAS as aulas não concluídas (agendadas ou não) e roda o agendamento
-     * automático do zero pra elas — pra quando o aluno ficou atrasado ou mudou a configuração
-     * e prefere reorganizar tudo de uma vez, em vez de só continuar de onde parou.
+     * Limpa a data de todas as aulas não concluídas — agendadas ou não — só das matérias em
+     * [materiaIds], e roda o agendamento automático do zero pra elas (mesmo ciclo). Útil
+     * quando o aluno ficou atrasado num ciclo específico ou mudou a configuração e prefere
+     * reorganizar só aquele grupo de matérias, sem mexer nos outros ciclos já agendados.
      */
-    suspend fun refazerAgendamentoAutomatico(): Int {
+    suspend fun refazerAgendamentoAutomatico(materiaIds: Set<Long>): Int {
         val todasAulas = aulaDao.buscarTodasSuspend()
-        todasAulas.filter { !it.concluida && it.dataHoraMillis != null }.forEach { aula ->
-            val semData = aula.copy(dataHoraMillis = null)
-            aulaDao.atualizar(semData)
-            alarmScheduler.cancelar(semData)
-        }
-        return agendarAutomaticamente()
+        todasAulas
+            .filter { it.materiaId in materiaIds && !it.concluida && it.dataHoraMillis != null }
+            .forEach { aula ->
+                val semData = aula.copy(dataHoraMillis = null)
+                aulaDao.atualizar(semData)
+                alarmScheduler.cancelar(semData)
+            }
+        return agendarAutomaticamente(materiaIds)
     }
 
     suspend fun marcarConclusao(aula: Aula, concluida: Boolean) {

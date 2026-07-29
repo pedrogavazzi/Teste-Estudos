@@ -248,9 +248,22 @@ fun ConfiguracoesScreen(viewModel: ConfiguracoesViewModel) {
 private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val config by viewModel.configuracaoAutomatica.collectAsState()
+    val materiasComPendentes by viewModel.materiasComPendentes.collectAsState()
     var expandido by remember { mutableStateOf(false) }
     var mostrarConfirmacaoRefazer by remember { mutableStateOf(false) }
     var mensagemResultado by remember { mutableStateOf<String?>(null) }
+
+    // Começa com todas as matérias pendentes marcadas (pra continuar funcionando "liso" pra
+    // quem só quer agendar tudo de uma vez) — depois disso, respeita o que o aluno escolher
+    // manualmente pra cada ciclo, sem forçar a seleção de novo a cada recomposição.
+    var materiasSelecionadas by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var selecaoInicializada by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(materiasComPendentes) {
+        if (!selecaoInicializada && materiasComPendentes.isNotEmpty()) {
+            materiasSelecionadas = materiasComPendentes.map { it.materia.id }.toSet()
+            selecaoInicializada = true
+        }
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -280,11 +293,62 @@ private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
             androidx.compose.animation.AnimatedVisibility(visible = expandido) {
                 Column(Modifier.padding(top = 12.dp)) {
                     Text(
-                        "Agenda sozinho todas as aulas que ainda não têm data, misturando todas as " +
-                            "matérias em rodízio — uma de cada vez, na ordem de cada uma.",
+                        "Agenda sozinho as aulas ainda sem data das matérias escolhidas abaixo (um " +
+                            "\"ciclo\"), misturando-as em rodízio entre si. Pra focar num grupo de " +
+                            "matérias por vez, desmarque as outras — o próximo ciclo continua " +
+                            "automaticamente depois deste, sem sobrepor datas.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    Text(
+                        "Matérias deste ciclo",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                    )
+                    if (materiasComPendentes.isEmpty()) {
+                        Text(
+                            "Nenhuma matéria com aula pendente de agendar no momento.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Column {
+                            materiasComPendentes.forEach { item ->
+                                val marcada = item.materia.id in materiasSelecionadas
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            materiasSelecionadas = if (marcada) {
+                                                materiasSelecionadas - item.materia.id
+                                            } else {
+                                                materiasSelecionadas + item.materia.id
+                                            }
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = marcada,
+                                        onCheckedChange = { marcar ->
+                                            materiasSelecionadas = if (marcar) {
+                                                materiasSelecionadas + item.materia.id
+                                            } else {
+                                                materiasSelecionadas - item.materia.id
+                                            }
+                                        }
+                                    )
+                                    Text(item.materia.nome, modifier = Modifier.weight(1f))
+                                    Text(
+                                        "${item.aulasPendentes} pendente(s)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Text(
                         "Aulas por dia",
@@ -356,23 +420,25 @@ private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
                     }
 
                     Button(
+                        enabled = materiasSelecionadas.isNotEmpty(),
                         onClick = {
-                            viewModel.agendarAutomaticamente { quantidade ->
+                            viewModel.agendarAutomaticamente(materiasSelecionadas) { quantidade ->
                                 mensagemResultado = if (quantidade > 0) {
-                                    "$quantidade aula(s) agendada(s)."
+                                    "$quantidade aula(s) agendada(s) neste ciclo."
                                 } else {
-                                    "Não havia aulas pendentes para agendar."
+                                    "Nenhuma aula pendente nas matérias escolhidas."
                                 }
                                 expandido = false
                             }
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    ) { Text("Agendar aulas pendentes agora") }
+                    ) { Text("Agendar este ciclo") }
 
                     OutlinedButton(
+                        enabled = materiasSelecionadas.isNotEmpty(),
                         onClick = { mostrarConfirmacaoRefazer = true },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    ) { Text("Refazer todo o agendamento") }
+                    ) { Text("Refazer agendamento deste ciclo") }
                 }
             }
 
@@ -390,19 +456,20 @@ private fun SecaoAgendamentoAutomatico(viewModel: ConfiguracoesViewModel) {
     if (mostrarConfirmacaoRefazer) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { mostrarConfirmacaoRefazer = false },
-            title = { Text("Refazer todo o agendamento?") },
+            title = { Text("Refazer o agendamento deste ciclo?") },
             text = {
                 Text(
-                    "Isso vai apagar a data de TODAS as aulas não concluídas — mesmo as que já " +
-                        "têm data marcada — e reorganizar tudo de novo, a partir de hoje. Aulas " +
-                        "já concluídas não são afetadas. Essa ação não pode ser desfeita."
+                    "Isso vai apagar a data de todas as aulas não concluídas das matérias " +
+                        "marcadas acima — mesmo as que já têm data — e reorganizar só elas de " +
+                        "novo, a partir de hoje. As outras matérias não são afetadas. Aulas já " +
+                        "concluídas também não são afetadas. Essa ação não pode ser desfeita."
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     mostrarConfirmacaoRefazer = false
-                    viewModel.refazerAgendamentoAutomatico { quantidade ->
-                        mensagemResultado = "$quantidade aula(s) reorganizada(s)."
+                    viewModel.refazerAgendamentoAutomatico(materiasSelecionadas) { quantidade ->
+                        mensagemResultado = "$quantidade aula(s) reorganizada(s) neste ciclo."
                     }
                     expandido = false
                 }) { Text("Refazer") }

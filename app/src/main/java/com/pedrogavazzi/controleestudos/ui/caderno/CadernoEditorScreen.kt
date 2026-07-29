@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -108,7 +109,10 @@ fun CadernoEditorScreen(
     ) { uris ->
         if (uris.isNotEmpty()) viewModel.adicionarFotos(aulaId, uris)
     }
-    var uriCapturaAtual by remember { mutableStateOf<android.net.Uri?>(null) }
+    // rememberSaveable (não remember): se o aparelho girar enquanto o app de câmera está em
+    // primeiro plano, a Activity é recriada — um "remember" comum perderia essa Uri nesse
+    // meio-tempo, e a foto tirada nunca seria salva (sumia sem nenhum aviso).
+    var uriCapturaAtual by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
     val lancadorCamera = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.TakePicture()
     ) { sucesso ->
@@ -488,6 +492,7 @@ private fun SecaoFotos(
 ) {
     var fotoEmVisualizacao by remember { mutableStateOf<FotoAula?>(null) }
     var menuAdicionarAberto by remember { mutableStateOf(false) }
+    var fotoParaConfirmarExclusao by remember { mutableStateOf<FotoAula?>(null) }
 
     Column {
         Text(
@@ -519,7 +524,7 @@ private fun SecaoFotos(
                                 .align(Alignment.TopEnd)
                                 .padding(2.dp)
                                 .size(22.dp)
-                                .clickable { onRemover(foto) }
+                                .clickable { fotoParaConfirmarExclusao = foto }
                         ) {
                             Icon(
                                 Icons.Filled.Close,
@@ -602,6 +607,24 @@ private fun SecaoFotos(
                 }
             }
         }
+    }
+
+    val fotoParaExcluir = fotoParaConfirmarExclusao
+    if (fotoParaExcluir != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { fotoParaConfirmarExclusao = null },
+            title = { Text("Remover esta foto?") },
+            text = { Text("A foto será apagada do aparelho. Essa ação não pode ser desfeita.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemover(fotoParaExcluir)
+                    fotoParaConfirmarExclusao = null
+                }) { Text("Remover") }
+            },
+            dismissButton = {
+                TextButton(onClick = { fotoParaConfirmarExclusao = null }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

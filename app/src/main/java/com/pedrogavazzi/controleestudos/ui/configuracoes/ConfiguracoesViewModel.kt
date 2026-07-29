@@ -7,14 +7,22 @@ import com.pedrogavazzi.controleestudos.ControleEstudosApp
 import com.pedrogavazzi.controleestudos.data.AbaInicial
 import com.pedrogavazzi.controleestudos.data.ConfiguracaoAgendamentoAutomatico
 import com.pedrogavazzi.controleestudos.data.ExportadorPdf
+import com.pedrogavazzi.controleestudos.data.Materia
 import com.pedrogavazzi.controleestudos.data.PreferenciasApp
 import com.pedrogavazzi.controleestudos.data.StudyRepository
 import com.pedrogavazzi.controleestudos.data.TemaApp
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** Uma matéria com quantas aulas dela ainda não têm data — usada no seletor de matérias do
+ *  ciclo de agendamento automático, pra o aluno ver de cara quais valem a pena incluir. */
+data class MateriaComPendentes(val materia: Materia, val aulasPendentes: Int)
 
 class ConfiguracoesViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,6 +38,23 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
     val abaInicial: StateFlow<AbaInicial> = preferencias.abaInicial
     val configuracaoAutomatica: StateFlow<ConfiguracaoAgendamentoAutomatico> = preferencias.configuracaoAutomatica
 
+    /** Matérias com pelo menos uma aula sem data e não concluída — as candidatas a entrar
+     *  num ciclo de agendamento automático. */
+    val materiasComPendentes: StateFlow<List<MateriaComPendentes>> =
+        combine(repository.observarMaterias(), repository.observarTodasAsAulas()) { materias, aulas ->
+            materias
+                .map { materia ->
+                    val pendentes = aulas.count { it.materiaId == materia.id && it.dataHoraMillis == null && !it.concluida }
+                    MateriaComPendentes(materia, pendentes)
+                }
+                .filter { it.aulasPendentes > 0 }
+                .sortedBy { it.materia.nome.lowercase() }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     fun definirTema(tema: TemaApp) {
         preferencias.definirTema(tema)
     }
@@ -42,19 +67,20 @@ class ConfiguracoesViewModel(application: Application) : AndroidViewModel(applic
         preferencias.definirConfiguracaoAutomatica(config)
     }
 
-    /** Agenda automaticamente todas as aulas ainda sem data, misturando todas as matérias.
-     *  [aoConcluir] recebe quantas aulas foram agendadas, pra tela mostrar o resultado. */
-    fun agendarAutomaticamente(aoConcluir: (Int) -> Unit) {
+    /** Agenda automaticamente as aulas ainda sem data das matérias escolhidas para este
+     *  ciclo, misturando-as entre si. [aoConcluir] recebe quantas aulas foram agendadas. */
+    fun agendarAutomaticamente(materiaIds: Set<Long>, aoConcluir: (Int) -> Unit) {
         viewModelScope.launch {
-            val quantidade = repository.agendarAutomaticamente()
+            val quantidade = repository.agendarAutomaticamente(materiaIds)
             aoConcluir(quantidade)
         }
     }
 
-    /** Limpa e refaz o agendamento automático de TODAS as aulas não concluídas, do zero. */
-    fun refazerAgendamentoAutomatico(aoConcluir: (Int) -> Unit) {
+    /** Limpa e refaz o agendamento automático das aulas não concluídas só das matérias
+     *  escolhidas para este ciclo, do zero. */
+    fun refazerAgendamentoAutomatico(materiaIds: Set<Long>, aoConcluir: (Int) -> Unit) {
         viewModelScope.launch {
-            val quantidade = repository.refazerAgendamentoAutomatico()
+            val quantidade = repository.refazerAgendamentoAutomatico(materiaIds)
             aoConcluir(quantidade)
         }
     }
